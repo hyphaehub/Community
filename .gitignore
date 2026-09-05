@@ -45,3 +45,7 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Claude Code — share project config (launch.json), keep personal settings local
+.claude/settings.local.json
+.claude/*.local.json
