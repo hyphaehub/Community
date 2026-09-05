@@ -186,10 +186,17 @@ export const inventoryItemCreateSchema = z.object({
   unit: z.string().max(24).default('unit'),
   unitCostCents: cents.nonnegative().default(0),
   quantityOnHand: z.number().default(0),
+  /** Reorder alert threshold; qty at/below this is "low stock". Null = no alert. */
+  lowStockThreshold: z.number().nonnegative().optional().nullable(),
   supplier: z.string().max(120).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 export const inventoryItemUpdateSchema = inventoryItemCreateSchema.partial();
+/** Increment (restock) or decrement (consume) stock on hand. */
+export const inventoryAdjustSchema = z.object({
+  delta: z.number(),
+  note: z.string().max(200).optional().nullable(),
+});
 
 // ── Cost entry ───────────────────────────────────────────────────────────────
 export const costEntryCreateSchema = z.object({
@@ -229,5 +236,6 @@ export type HarvestCreateInput = z.input<typeof harvestCreateSchema>;
 export type HarvestUpdateInput = z.input<typeof harvestUpdateSchema>;
 export type InventoryItemCreateInput = z.input<typeof inventoryItemCreateSchema>;
 export type InventoryItemUpdateInput = z.input<typeof inventoryItemUpdateSchema>;
+export type InventoryAdjustInput = z.input<typeof inventoryAdjustSchema>;
 export type CostEntryCreateInput = z.input<typeof costEntryCreateSchema>;
 export type CostEntryUpdateInput = z.input<typeof costEntryUpdateSchema>;

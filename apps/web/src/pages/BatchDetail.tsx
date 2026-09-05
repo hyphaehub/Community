@@ -63,6 +63,8 @@ export function BatchDetail() {
   const [labelOpen, setLabelOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
+  const showCosts = me.data?.features?.costs !== false;
   const batch = useQuery({ queryKey: ['batch', id], queryFn: () => api.batches.get(id) });
   const events = useQuery({ queryKey: ['events'], queryFn: () => api.events.list() });
   const forecast = useQuery({
@@ -156,9 +158,11 @@ export function BatchDetail() {
             <Button variant="secondary" onClick={() => setLabelOpen(true)}>
               Print labels
             </Button>
-            <Button variant="secondary" onClick={() => setModal({ kind: 'cost' })}>
-              + Cost
-            </Button>
+            {showCosts && (
+              <Button variant="secondary" onClick={() => setModal({ kind: 'cost' })}>
+                + Cost
+              </Button>
+            )}
             <Button onClick={() => setModal({ kind: 'source' })}>+ Source</Button>
           </div>
         }
@@ -166,14 +170,16 @@ export function BatchDetail() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
-        <Stat label="Total cost" value={money(summary.cost.totalCents)} />
+        {showCosts && <Stat label="Total cost" value={money(summary.cost.totalCents)} />}
         <Stat label="Wet yield" value={formatMass(summary.yield.totalWetG)} />
         <Stat label="Dry yield" value={formatMass(summary.yield.totalDryG)} />
         <Stat
           label="Bio. efficiency"
           value={summary.efficiency.biologicalEfficiency != null ? `${summary.efficiency.biologicalEfficiency}%` : '—'}
         />
-        <Stat label="Cost / dry g" value={perGram(summary.efficiency.costPerDryGramCents)} />
+        {showCosts && (
+          <Stat label="Cost / dry g" value={perGram(summary.efficiency.costPerDryGramCents)} />
+        )}
         <Stat
           label="Days to harvest"
           value={summary.timeline.daysToFirstHarvest ?? '—'}
@@ -256,24 +262,26 @@ export function BatchDetail() {
           )}
         </div>
 
-        <div>
-          <h2 className="mb-3 text-lg font-semibold text-substrate">Costs</h2>
-          {costs.length === 0 ? (
-            <EmptyState title="No costs logged" hint="Split/combine can log costs automatically." />
-          ) : (
-            <Card className="divide-y divide-mycelium p-0">
-              {costs.map((cost) => (
-                <div key={cost.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                  <div>
-                    <div className="text-substrate">{cost.description}</div>
-                    <div className="text-xs text-ink/50">{cost.category.toLowerCase()}</div>
+        {showCosts && (
+          <div>
+            <h2 className="mb-3 text-lg font-semibold text-substrate">Costs</h2>
+            {costs.length === 0 ? (
+              <EmptyState title="No costs logged" hint="Split/combine can log costs automatically." />
+            ) : (
+              <Card className="divide-y divide-mycelium p-0">
+                {costs.map((cost) => (
+                  <div key={cost.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                    <div>
+                      <div className="text-substrate">{cost.description}</div>
+                      <div className="text-xs text-ink/50">{cost.category.toLowerCase()}</div>
+                    </div>
+                    <div className="font-medium text-substrate">{money(cost.amountCents)}</div>
                   </div>
-                  <div className="font-medium text-substrate">{money(cost.amountCents)}</div>
-                </div>
-              ))}
-            </Card>
-          )}
-        </div>
+                ))}
+              </Card>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-8">

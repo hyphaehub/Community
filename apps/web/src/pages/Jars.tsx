@@ -1,4 +1,4 @@
-import { STATUS_LABELS } from '@hyphaehub/core';
+import { STATUS_LABELS, gramsToUnit, parseMassUnit } from '@hyphaehub/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
@@ -81,7 +81,7 @@ export function Jars() {
             <Field label="Grain type">
               <Input value={grainType} onChange={(e) => setGrainType(e.target.value)} />
             </Field>
-            <Field label="Grain per jar" hint="in the inventory item's unit (optional)">
+            <Field label="Grain per jar (g)" hint="grams; converted to the inventory item's unit automatically">
               <Input type="number" min={0} value={qty} onChange={(e) => setQty(e.target.value)} />
             </Field>
             <Field label="Draw from inventory" hint="optional; deducts stock and logs cost">
@@ -98,6 +98,28 @@ export function Jars() {
                 ))}
               </select>
             </Field>
+            {(() => {
+              const item = (inventory.data ?? []).find((i) => i.id === invId);
+              const grams = (Number(qty) || 0) * (Number(count) || 0);
+              if (!item || grams <= 0) return null;
+              const converted = gramsToUnit(grams, item.unit);
+              return (
+                <p className="text-xs text-ink/60">
+                  {converted != null ? (
+                    <>
+                      Draws <span className="font-medium text-substrate">{Math.round(converted * 10000) / 10000} {item.unit}</span>{' '}
+                      from {item.name} ({grams} g total){' · '}
+                      {money(Math.round(converted * item.unitCostCents))}
+                    </>
+                  ) : parseMassUnit(item.unit) == null ? (
+                    <span className="text-flush">
+                      {item.name} is measured in “{item.unit}”, not a weight unit, so grams can’t be
+                      auto-converted. Stock won’t be drawn down.
+                    </span>
+                  ) : null}
+                </p>
+              );
+            })()}
             <Button type="submit" className="w-full" disabled={create.isPending}>
               {create.isPending ? 'Prepping…' : 'Prep jars'}
             </Button>

@@ -1,5 +1,10 @@
 import { zValidator } from '@hono/zod-validator';
-import { inventoryItemCreateSchema, inventoryItemUpdateSchema } from '@hyphaehub/core';
+import {
+  inventoryAdjustSchema,
+  inventoryItemCreateSchema,
+  inventoryItemUpdateSchema,
+  round,
+} from '@hyphaehub/core';
 import { inventoryItems } from '@hyphaehub/db';
 import { and, asc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -35,6 +40,24 @@ r.patch('/:id', zValidator('json', inventoryItemUpdateSchema), async (c) => {
     .where(and(eq(inventoryItems.id, c.req.param('id')), eq(inventoryItems.workspaceId, ws.id)))
     .returning();
   if (!rows[0]) return c.json({ error: 'Not found' }, 404);
+  return c.json(rows[0]);
+});
+
+// Restock (+delta) or consume (−delta) stock on hand.
+r.post('/:id/adjust', zValidator('json', inventoryAdjustSchema), async (c) => {
+  const ws = c.var.workspace;
+  const [item] = await c.var.db
+    .select()
+    .from(inventoryItems)
+    .where(and(eq(inventoryItems.id, c.req.param('id')), eq(inventoryItems.workspaceId, ws.id)))
+    .limit(1);
+  if (!item) return c.json({ error: 'Not found' }, 404);
+  const next = round((item.quantityOnHand ?? 0) + c.req.valid('json').delta, 4);
+  const rows = await c.var.db
+    .update(inventoryItems)
+    .set({ quantityOnHand: next })
+    .where(eq(inventoryItems.id, item.id))
+    .returning();
   return c.json(rows[0]);
 });
 

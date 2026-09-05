@@ -32,6 +32,13 @@ export const FEATURES = {
       'Predict each batch stage on a calendar, compare estimated to actual, and forecast production output to keep a steady harvest.',
     defaultEnabled: true,
   },
+  costs: {
+    key: 'costs',
+    label: 'Cost tracking',
+    description:
+      'Track materials, substrate, and supply costs per batch, with cost-per-gram and total spend. Turn off to hide all cost tracking.',
+    defaultEnabled: true,
+  },
 } as const satisfies Record<string, FeatureDef>;
 
 export type FeatureKey = keyof typeof FEATURES;

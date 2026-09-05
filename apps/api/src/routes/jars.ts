@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator';
-import { jarAssignSchema, jarCreateSchema } from '@hyphaehub/core';
+import { gramsToUnit, jarAssignSchema, jarCreateSchema, round } from '@hyphaehub/core';
 import { batches, costEntries, cultures, inventoryItems } from '@hyphaehub/db';
 import { and, count, eq, inArray, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -40,7 +40,9 @@ r.post('/', zValidator('json', jarCreateSchema), async (c) => {
     .where(eq(cultures.workspaceId, ws.id));
   await enforceLimit(db, ws, 'maxCultures', cur?.n ?? 0, body.count);
 
-  const totalGrain = (body.quantity ?? 0) * body.count;
+  // Grain per jar is entered in GRAMS; convert to the inventory item's own unit
+  // (kg, lb, oz, g, …) for the draw-down and cost.
+  const totalGrams = (body.quantity ?? 0) * body.count;
   let costCents = body.costCents ?? 0;
   const inventoryItemId = body.inventoryItemId ?? null;
 
@@ -51,12 +53,17 @@ r.post('/', zValidator('json', jarCreateSchema), async (c) => {
       .where(and(eq(inventoryItems.id, inventoryItemId), eq(inventoryItems.workspaceId, ws.id)))
       .limit(1);
     if (!item) throw new HTTPException(404, { message: 'Inventory item not found.' });
-    if (totalGrain > 0) {
-      await db
-        .update(inventoryItems)
-        .set({ quantityOnHand: (item.quantityOnHand ?? 0) - totalGrain })
-        .where(eq(inventoryItems.id, inventoryItemId));
-      if (body.costCents === undefined) costCents = Math.round(totalGrain * item.unitCostCents);
+    if (totalGrams > 0) {
+      // Convert grams → the item's unit. If the item isn't weight-based (e.g.
+      // "bag"), we can't auto-convert, so skip the draw-down rather than guess.
+      const deducted = gramsToUnit(totalGrams, item.unit);
+      if (deducted != null) {
+        await db
+          .update(inventoryItems)
+          .set({ quantityOnHand: round((item.quantityOnHand ?? 0) - deducted, 4) })
+          .where(eq(inventoryItems.id, inventoryItemId));
+        if (body.costCents === undefined) costCents = Math.round(deducted * item.unitCostCents);
+      }
     }
   }
 
@@ -74,8 +81,8 @@ r.post('/', zValidator('json', jarCreateSchema), async (c) => {
     status: body.status,
     containerType: body.containerType,
     substrateType: body.grainType ?? null,
-    quantity: body.quantity ?? null,
-    quantityUnit: body.quantityUnit ?? null,
+    quantity: body.quantity ?? null, // grams of grain per jar
+    quantityUnit: 'g',
     strainId: body.strainId ?? null,
     batchId: null,
     costCents: costCents > 0 ? base + (i < remainder ? 1 : 0) : null,

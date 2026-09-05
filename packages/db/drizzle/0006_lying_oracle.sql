@@ -1,0 +1,1 @@
+ALTER TABLE `inventory_items` ADD `low_stock_threshold` real;

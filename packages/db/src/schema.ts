@@ -287,6 +287,8 @@ export const inventoryItems = sqliteTable(
     unit: text('unit').notNull().default('unit'),
     unitCostCents: integer('unit_cost_cents').notNull().default(0),
     quantityOnHand: real('quantity_on_hand').notNull().default(0),
+    /** Warn when quantityOnHand drops to or below this (null = no reorder alert). */
+    lowStockThreshold: real('low_stock_threshold'),
     supplier: text('supplier'),
     notes: text('notes'),
     createdAt: createdAt(),

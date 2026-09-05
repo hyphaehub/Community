@@ -46,6 +46,7 @@ export function Layout() {
   };
   if (me?.features?.jars) insertAfter('/', jarsItem);
   if (me?.features?.forecast !== false) insertAfter('/batches', calendarItem);
+  if (me?.features?.costs === false) nav = nav.filter((n) => n.to !== '/costs');
 
   return (
     <div className="flex min-h-screen bg-spore">

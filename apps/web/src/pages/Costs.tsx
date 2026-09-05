@@ -1,14 +1,28 @@
 import { COST_CATEGORIES, toCents } from '@hyphaehub/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Spinner, Stat } from '../components/ui';
-import { api, ApiError } from '../lib/api';
+import { Navigate } from 'react-router-dom';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+  Spinner,
+  Stat,
+} from '../components/ui';
+import { ApiError, api } from '../lib/api';
 import { formatDate, money } from '../lib/format';
 
 export function Costs() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const costs = useQuery({ queryKey: ['costs'], queryFn: () => api.costs.list() });
   const batches = useQuery({ queryKey: ['batches'], queryFn: () => api.batches.list() });
 
@@ -27,6 +41,8 @@ export function Costs() {
   });
 
   const batchName = (id: string | null) => batches.data?.find((b) => b.id === id)?.name;
+
+  if (me.data && me.data.features?.costs === false) return <Navigate to="/" replace />;
 
   return (
     <div>
@@ -50,7 +66,11 @@ export function Costs() {
           </div>
 
           {(costs.data?.entries.length ?? 0) === 0 ? (
-            <EmptyState title="No costs logged" hint="Add materials, utilities, or equipment." action={<Button onClick={() => setOpen(true)}>Add cost</Button>} />
+            <EmptyState
+              title="No costs logged"
+              hint="Add materials, utilities, or equipment."
+              action={<Button onClick={() => setOpen(true)}>Add cost</Button>}
+            />
           ) : (
             <Card className="divide-y divide-mycelium p-0">
               {costs.data?.entries.map((c) => (
@@ -65,7 +85,11 @@ export function Costs() {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="font-medium text-substrate">{money(c.amountCents)}</div>
-                    <button type="button" onClick={() => remove.mutate(c.id)} className="text-xs text-ink/40 hover:text-flush">
+                    <button
+                      type="button"
+                      onClick={() => remove.mutate(c.id)}
+                      className="text-xs text-ink/40 hover:text-flush"
+                    >
                       delete
                     </button>
                   </div>

@@ -56,7 +56,9 @@ export function Dashboard() {
         <Stat label="Active tubs" value={activeTubs.length} sub="fruiting & colonizing" />
         <Stat label="Colonizing" value={colonizing.length} sub="jars / cultures" />
         <Stat label="Total dry yield" value={formatMass(totals.totalDryG)} sub={`${totals.harvestCount} harvests`} />
-        <Stat label="Total spend" value={money(spend)} sub="all batches" />
+        {me.data?.features?.costs !== false && (
+          <Stat label="Total spend" value={money(spend)} sub="all batches" />
+        )}
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">

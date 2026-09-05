@@ -18,6 +18,44 @@ export function fromGrams(grams: number, unit: MassUnit): number {
   return grams / GRAMS_PER[unit];
 }
 
+/** Common spellings/aliases for the supported mass units. */
+const MASS_ALIASES: Record<string, MassUnit> = {
+  g: 'g',
+  gr: 'g',
+  gm: 'g',
+  gram: 'g',
+  grams: 'g',
+  kg: 'kg',
+  kgs: 'kg',
+  kilo: 'kg',
+  kilos: 'kg',
+  kilogram: 'kg',
+  kilograms: 'kg',
+  oz: 'oz',
+  ounce: 'oz',
+  ounces: 'oz',
+  lb: 'lb',
+  lbs: 'lb',
+  pound: 'lb',
+  pounds: 'lb',
+};
+
+/** Normalize a free-form unit string to a MassUnit, or null if it is not a mass unit. */
+export function parseMassUnit(unit?: string | null): MassUnit | null {
+  if (!unit) return null;
+  return MASS_ALIASES[unit.trim().toLowerCase()] ?? null;
+}
+
+/**
+ * Convert grams into a (possibly free-form/aliased) unit — e.g. grams → the unit
+ * an inventory item is tracked in. Returns null when the target is not a mass
+ * unit (so the caller can decide how to handle non-mass stock like "bag").
+ */
+export function gramsToUnit(grams: number, unit?: string | null): number | null {
+  const u = parseMassUnit(unit);
+  return u ? fromGrams(grams, u) : null;
+}
+
 /** Round to a fixed number of decimals (default 2), avoiding float noise. */
 export function round(value: number, decimals = 2): number {
   const f = 10 ** decimals;

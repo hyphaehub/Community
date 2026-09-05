@@ -8,13 +8,38 @@ import {
   yieldTotals,
 } from './cost';
 import { checkLimit } from './tiers';
-import { formatMass, formatMoney, fromGrams, toCents, toGrams } from './units';
+import {
+  formatMass,
+  formatMoney,
+  fromGrams,
+  gramsToUnit,
+  parseMassUnit,
+  toCents,
+  toGrams,
+} from './units';
 
 describe('units', () => {
   it('converts mass units through grams', () => {
     expect(toGrams(1, 'kg')).toBe(1000);
     expect(toGrams(1, 'lb')).toBeCloseTo(453.59237, 5);
     expect(fromGrams(28.349523125, 'oz')).toBeCloseTo(1, 6);
+  });
+
+  it('parses free-form unit strings to a mass unit', () => {
+    expect(parseMassUnit('kg')).toBe('kg');
+    expect(parseMassUnit('Kilograms')).toBe('kg');
+    expect(parseMassUnit(' LB ')).toBe('lb');
+    expect(parseMassUnit('pounds')).toBe('lb');
+    expect(parseMassUnit('grams')).toBe('g');
+    expect(parseMassUnit('bag')).toBeNull();
+    expect(parseMassUnit(null)).toBeNull();
+  });
+
+  it('converts grams into an inventory unit (null for non-mass units)', () => {
+    expect(gramsToUnit(6000, 'kg')).toBeCloseTo(6, 6); // 6 jars × 1000 g → 6 kg
+    expect(gramsToUnit(907.18474, 'lb')).toBeCloseTo(2, 6);
+    expect(gramsToUnit(500, 'g')).toBe(500);
+    expect(gramsToUnit(500, 'bag')).toBeNull();
   });
 
   it('formats mass and money', () => {

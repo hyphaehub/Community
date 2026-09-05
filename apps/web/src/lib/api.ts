@@ -9,6 +9,7 @@ import type {
   HarvestCreateInput,
   HarvestUpdateInput,
   InventoryItemCreateInput,
+  InventoryItemUpdateInput,
   JarCreateInput,
   SplitCultureInput,
   StrainCreateInput,
@@ -205,6 +206,13 @@ export const api = {
     list: () => req<InventoryItem[]>('/api/inventory'),
     create: (b: InventoryItemCreateInput) =>
       req<InventoryItem>('/api/inventory', { method: 'POST', body: json(b) }),
+    update: (id: string, b: InventoryItemUpdateInput) =>
+      req<InventoryItem>(`/api/inventory/${id}`, { method: 'PATCH', body: json(b) }),
+    adjust: (id: string, delta: number, note?: string) =>
+      req<InventoryItem>(`/api/inventory/${id}/adjust`, {
+        method: 'POST',
+        body: json({ delta, note }),
+      }),
     remove: (id: string) => req(`/api/inventory/${id}`, { method: 'DELETE' }),
   },
 
