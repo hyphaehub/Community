@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hyphaehub-web",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-01-15",
+  "workers_dev": true,
+  "routes": [{ "pattern": "app.hyphaehub.io", "custom_domain": true }],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "services": [{ "binding": "API", "service": "hyphaehub-api" }]
+}

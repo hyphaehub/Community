@@ -1,0 +1,38 @@
+{
+  "name": "@hyphaehub/api",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:node": "tsx watch src/server.node.ts",
+    "start:node": "tsx src/server.node.ts",
+    "deploy": "wrangler deploy",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "typecheck": "tsc --noEmit",
+    "migrate:local": "wrangler d1 migrations apply hyphaehub --local",
+    "migrate:remote": "wrangler d1 migrations apply hyphaehub --remote",
+    "seed:local": "wrangler d1 execute hyphaehub --local --file=../../packages/db/seed/presets.sql",
+    "seed:remote": "wrangler d1 execute hyphaehub --remote --file=../../packages/db/seed/presets.sql",
+    "clean": "rimraf dist .turbo .wrangler"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@hono/zod-validator": "^0.4.2",
+    "@hyphaehub/core": "workspace:*",
+    "@hyphaehub/db": "workspace:*",
+    "@libsql/client": "^0.14.0",
+    "better-auth": "^1.2.0",
+    "drizzle-orm": "^0.38.4",
+    "hono": "^4.6.15",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "@types/node": "^22.10.5",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "wrangler": "^4.101.0"
+  }
+}

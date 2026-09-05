@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local `wrangler dev`. Generate a strong secret for production.
+BETTER_AUTH_SECRET="dev-secret-change-me-please-0123456789abcdef"
+# Optional overrides:
+# BETTER_AUTH_URL="http://localhost:8787"
+# COOKIE_DOMAIN=".hypheahub.com"
+# STRIPE_SECRET_KEY="sk_test_..."
+# STRIPE_WEBHOOK_SECRET="whsec_..."

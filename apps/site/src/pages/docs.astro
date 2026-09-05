@@ -1,0 +1,57 @@
+---
+import Base from '../layouts/Base.astro';
+
+const sections = [
+  {
+    title: 'Core concepts',
+    items: [
+      ['Batch', 'A named run and the anchor for all cost and yield rollups.'],
+      ['Culture', 'Any physical unit: source, agar, LC, grain jar, or bulk tub.'],
+      ['Lineage', 'Parent → child links, so splits and combines are first-class.'],
+      ['Harvest', 'A flush with wet weight, then dry weight after drying.'],
+    ],
+  },
+  {
+    title: 'The workflow',
+    items: [
+      ['1. Add a source', 'Create a SOURCE culture from a syringe, LC, agar, or clone.'],
+      ['2. Split into jars', 'Turn one source into several colonized grain jars in one step.'],
+      ['3. Combine into a tub', 'Merge one or two jars into a fruiting tub; parents are linked and marked spent.'],
+      ['4. Log fruiting & harvest', 'Record fruiting conditions, then each flush’s wet and dry weight.'],
+      ['5. Review the batch', 'Cost, dry yield, biological efficiency, and cost-per-gram update automatically.'],
+    ],
+  },
+  {
+    title: 'Metrics',
+    items: [
+      ['Biological efficiency', 'Fresh mushroom mass ÷ dry substrate weight × 100.'],
+      ['Cost per dry gram', 'Total batch cost ÷ total dry yield.'],
+      ['Dry ratio', 'Dry weight ÷ wet weight across all flushes.'],
+    ],
+  },
+];
+---
+
+<Base title="Docs · HyphaeHub">
+  <section class="mx-auto max-w-3xl px-5 py-16">
+    <h1 class="text-4xl font-extrabold tracking-tight text-substrate">Documentation</h1>
+    <p class="mt-3 text-ink/70">
+      A quick tour of how HyphaeHub models your grow. Full API and self-hosting guides live in the
+      repository README.
+    </p>
+
+    {sections.map((s) => (
+      <div class="mt-10">
+        <h2 class="text-xl font-bold text-substrate">{s.title}</h2>
+        <dl class="mt-4 space-y-3">
+          {s.items.map(([term, def]) => (
+            <div class="rounded-xl border border-mycelium bg-white p-4">
+              <dt class="font-semibold text-substrate">{term}</dt>
+              <dd class="mt-1 text-sm text-ink/60">{def}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    ))}
+  </section>
+</Base>

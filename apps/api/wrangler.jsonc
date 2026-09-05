@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hyphaehub-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "workers_dev": true,
+  "routes": [{ "pattern": "api.hyphaehub.io", "custom_domain": true }],
+  "vars": {
+    "APP_URL": "https://app.hyphaehub.io",
+    "SITE_URL": "https://hyphaehub.io",
+    "BETTER_AUTH_URL": "https://app.hyphaehub.io",
+    "COOKIE_DOMAIN": ".hyphaehub.io"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hyphaehub",
+      "database_id": "3054f5a5-cfdc-4c67-893e-902a48e5449d",
+      "migrations_dir": "../../packages/db/drizzle"
+    }
+  ],
+  // Photos require an R2 bucket. Add this binding once R2 is enabled on the token:
+  // "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "hyphaehub-photos" }],
+  "kv_namespaces": [{ "binding": "SESSIONS", "id": "d2d5892a8d3b4963880e492e1ae2389b" }]
+}

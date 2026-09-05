@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1782954195329,
+      "tag": "0000_chunky_paper_doll",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788464129310,
+      "tag": "0001_glorious_violations",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788465054105,
+      "tag": "0002_skinny_radioactive_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788470013440,
+      "tag": "0003_dapper_quentin_quire",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788470770913,
+      "tag": "0004_black_shadowcat",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1788569535340,
+      "tag": "0005_sudden_jackpot",
+      "breakpoints": true
+    }
+  ]
+}

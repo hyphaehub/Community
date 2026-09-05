@@ -1,0 +1,1 @@
+ALTER TABLE `strains` ADD `forecast_profile` text;

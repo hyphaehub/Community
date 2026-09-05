@@ -1,0 +1,87 @@
+---
+import Base from '../layouts/Base.astro';
+
+const APP_URL = import.meta.env.PUBLIC_APP_URL ?? 'https://app.hyphaehub.io';
+
+const faqs = [
+  {
+    q: 'What is HyphaeHub?',
+    a: 'A tracker for mushroom cultivation. It follows your grow from a single source, to grain jars, to fruiting tubs, to harvest, and it keeps the real cost and yield for every batch.',
+  },
+  {
+    q: 'Who is it for?',
+    a: 'Home growers and small farms who want their records to match what is actually on the shelf, with clear cost per gram and yield.',
+  },
+  {
+    q: 'What can I track?',
+    a: 'Sources, grain jars, and tubs as a connected lineage, plus harvests (wet and dry weight), inventory, costs, and strains. It computes dry ratio, biological efficiency, and cost per dry gram for you.',
+  },
+  {
+    q: 'What are the editions?',
+    a: 'A free, open-source Community Edition you host yourself; a hosted Cloud service with free and paid plans; and a mobile app for logging from the grow room.',
+  },
+  {
+    q: 'How much does it cost?',
+    a: 'The Free plan covers light use. Pro and Farm add more organizations, unlimited batches, and team features. See the Pricing page for details.',
+  },
+  {
+    q: 'Can I self-host it?',
+    a: 'Yes. The Community Edition runs with Docker on your own hardware and is free forever under the MIT license. See the Self-host page.',
+  },
+  {
+    q: 'Where is my data, and is it private?',
+    a: 'Self-hosted data stays on your infrastructure. In the Cloud, data is stored on Cloudflare, is never sold, and you can export or delete it at any time. See the Privacy Policy.',
+  },
+  {
+    q: 'Can I work with a team?',
+    a: 'Yes. You can belong to more than one organization (a farm), invite members, and assign roles. Paid plans raise the number of organizations and members.',
+  },
+  {
+    q: 'What are jars?',
+    a: 'An optional feature for prepping sterilized grain jars before you assign them to a batch. Creating jars draws grain from inventory, and the grain cost moves onto the batch when you assign them.',
+  },
+  {
+    q: 'Which species does it support?',
+    a: 'HyphaeHub is species-agnostic. It is a record-keeping tool and does not endorse any particular organism. You are responsible for following the laws that apply where you grow.',
+  },
+  {
+    q: 'Is there a mobile app?',
+    a: 'An Android build is available for testing, with more to come. It signs in to the same account and talks to the same data as the web app.',
+  },
+  {
+    q: 'How do I get help?',
+    a: 'Email support@hyphaehub.io, or use the Contact page.',
+  },
+];
+---
+
+<Base title="FAQ · HyphaeHub" description="Answers to common questions about HyphaeHub.">
+  <section class="mx-auto max-w-3xl px-5 py-16">
+    <h1 class="text-3xl font-extrabold tracking-tight text-substrate">Frequently asked questions</h1>
+    <p class="mt-3 text-ink/60">
+      If you do not see your question here, reach us on the
+      <a class="font-medium text-hyphae-700 hover:underline" href="/contact">Contact</a> page.
+    </p>
+
+    <div class="mt-8 space-y-4">
+      {faqs.map((f) => (
+        <details class="group rounded-2xl border border-mycelium bg-white p-5 open:bg-parchment">
+          <summary class="flex cursor-pointer list-none items-center justify-between font-semibold text-substrate">
+            {f.q}
+            <span class="ml-4 text-hyphae-500 transition-transform group-open:rotate-45">+</span>
+          </summary>
+          <p class="mt-3 text-sm text-ink/70 leading-relaxed">{f.a}</p>
+        </details>
+      ))}
+    </div>
+
+    <div class="mt-10 rounded-2xl border border-hyphae-300 bg-hyphae-50 p-6 text-center">
+      <p class="font-semibold text-substrate">Ready to start?</p>
+      <p class="mt-1 text-sm text-ink/60">Create a free account, or self-host the Community Edition.</p>
+      <div class="mt-4 flex justify-center gap-3">
+        <a href={APP_URL} class="rounded-xl bg-hyphae-600 px-5 py-2.5 text-sm font-semibold text-spore hover:bg-hyphae-700">Start free</a>
+        <a href="/self-host" class="rounded-xl border border-mycelium bg-white px-5 py-2.5 text-sm font-semibold text-ink hover:bg-spore">Self-host</a>
+      </div>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/build
+**/.output
+**/.astro
+**/.expo
+**/.turbo
+**/.wrangler
+**/*.tsbuildinfo
+.git
+data
+**/.dev.vars
+**/.dev.vars.*
+!**/.dev.vars.example
+**/local.db*

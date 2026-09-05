@@ -1,0 +1,1 @@
+ALTER TABLE `cultures` ADD `cost_cents` integer;

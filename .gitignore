@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.output/
+.astro/
+.expo/
+*.tsbuildinfo
+
+# Expo-generated native projects (regenerated via `expo prebuild`)
+apps/mobile/android/
+apps/mobile/ios/
+
+# Turbo
+.turbo/
+
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Drizzle local database artifacts
+packages/db/local.db
+packages/db/local.db-*
+*.sqlite
+*.sqlite3
+data/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/

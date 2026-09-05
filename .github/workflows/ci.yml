@@ -1,0 +1,55 @@
+name: CI
+
+# Validate the monorepo on every push to master and on all pull requests:
+# install → build → typecheck → test (blocking), plus a non-blocking lint report.
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+# Cancel superseded runs on the same ref so only the latest commit is validated.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Build, typecheck & test
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+      # Keep wrangler (used by the api build's --dry-run) non-interactive & quiet.
+      WRANGLER_SEND_METRICS: "false"
+      DO_NOT_TRACK: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (core, db, api dry-run, web, site)
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      # Lint is reported but does not fail the build yet: the repo has known
+      # formatting drift. Run `pnpm format` and flip this to blocking once clean.
+      - name: Lint (informational)
+        continue-on-error: true
+        run: pnpm lint

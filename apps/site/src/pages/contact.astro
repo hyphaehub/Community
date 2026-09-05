@@ -1,0 +1,58 @@
+---
+import Base from '../layouts/Base.astro';
+
+const channels = [
+  {
+    title: 'Support',
+    body: 'Questions, bugs, or help getting set up.',
+    email: 'support@hyphaehub.io',
+  },
+  {
+    title: 'Privacy and data requests',
+    body: 'Access, export, or delete your data, or ask a privacy question.',
+    email: 'privacy@hyphaehub.io',
+  },
+  {
+    title: 'Legal notices',
+    body: 'Terms, licensing, and formal legal notices.',
+    email: 'legal@hyphaehub.io',
+  },
+];
+---
+
+<Base title="Contact · HyphaeHub" description="Get in touch with the HyphaeHub team.">
+  <section class="mx-auto max-w-3xl px-5 py-16">
+    <h1 class="text-3xl font-extrabold tracking-tight text-substrate">Contact us</h1>
+    <p class="mt-3 text-ink/60">
+      We are a small team and we read everything. Email is the fastest way to reach us, and we aim
+      to reply within two business days.
+    </p>
+
+    <div class="mt-8 grid gap-4 sm:grid-cols-3">
+      {channels.map((c) => (
+        <div class="rounded-2xl border border-mycelium bg-white p-5">
+          <h2 class="font-semibold text-substrate">{c.title}</h2>
+          <p class="mt-1 text-sm text-ink/60">{c.body}</p>
+          <a class="mt-3 inline-block text-sm font-semibold text-hyphae-700 hover:underline" href={`mailto:${c.email}`}>
+            {c.email}
+          </a>
+        </div>
+      ))}
+    </div>
+
+    <div class="mt-8 rounded-2xl border border-mycelium bg-parchment p-5 text-sm text-ink/70">
+      <p>
+        HyphaeHub LLC operates from Sisters, in Deschutes County, Oregon, and the Service is
+        governed by Oregon law. For the full terms, see our
+        <a class="font-medium text-hyphae-700 hover:underline" href="/terms">Terms and Usage Policy</a>
+        and
+        <a class="font-medium text-hyphae-700 hover:underline" href="/privacy">Privacy Policy</a>.
+      </p>
+    </div>
+
+    <p class="mt-6 text-sm text-ink/50">
+      Looking for a quick answer first? Try the
+      <a class="font-medium text-hyphae-700 hover:underline" href="/faq">FAQ</a>.
+    </p>
+  </section>
+</Base>
