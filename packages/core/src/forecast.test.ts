@@ -140,14 +140,16 @@ describe('aggregateCalendar', () => {
         batchName: 'Blue Oyster',
         anchorAt: iso('2026-01-01'),
         ended: false,
-        timeline: [mkFlush(1, '2026-02-06', 100), mkFlush(2, '2026-02-20', 80)],
+        // Mid-week (Wed) dates so week bucketing is stable across time zones:
+        // Feb 4 → week of Feb 2, Feb 25 → week of Feb 23.
+        timeline: [mkFlush(1, '2026-02-04', 100), mkFlush(2, '2026-02-25', 80)],
       },
       {
         batchId: 'b',
         batchName: 'Lion’s Mane',
         anchorAt: iso('2026-01-10'),
         ended: false,
-        timeline: [mkFlush(1, '2026-02-09', 120)],
+        timeline: [mkFlush(1, '2026-02-11', 120)], // week of Feb 9
       },
     ];
     const cal = aggregateCalendar(forecasts, {
@@ -158,13 +160,13 @@ describe('aggregateCalendar', () => {
     });
 
     expect(cal.milestones.length).toBe(3);
-    // Next harvest is the earliest projected flush (Feb 6, batch a).
+    // Next harvest is the earliest projected flush (Feb 4, batch a).
     expect(cal.nextHarvest?.batchId).toBe('a');
-    expect(cal.nextHarvest?.date).toBe(iso('2026-02-06'));
+    expect(cal.nextHarvest?.date).toBe(iso('2026-02-04'));
     // Total harvests bucketed equals the number of in-window flushes.
     const bucketed = cal.weeks.reduce((s, w) => s + w.harvestCount, 0);
     expect(bucketed).toBe(3);
-    // Feb 6 and Feb 20 are >1 week apart with nothing between → a gap week exists.
+    // Weeks of Feb 2 and Feb 23 hold harvests with the week of Feb 16 empty → a gap.
     expect(cal.gaps.length).toBeGreaterThanOrEqual(1);
     // Stagger hint suggests an inoculation date ahead of the gap.
     expect(cal.staggerHint).not.toBeNull();
