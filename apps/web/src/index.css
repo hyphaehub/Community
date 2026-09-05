@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @theme {
   /* Brand palette — spore/earth neutrals + living-mycelium accents */
@@ -23,7 +23,7 @@
   --color-flush-600: #b0673a;
   --color-cap: #8b5e3c;
 
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 html,
@@ -44,4 +44,78 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-mycelium) transparent;
+}
+
+/* ── Label printing (browser print, any driver-backed printer) ──────────────
+   The .label-print-area is hidden on screen and revealed only when printing.
+   Card + QR dimensions come from CSS vars set by LabelPrintModal per label size. */
+.label-print-area {
+  display: none;
+}
+.label-card {
+  box-sizing: border-box;
+  width: var(--label-w);
+  height: var(--label-h);
+  padding: 2mm;
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  overflow: hidden;
+  background: #fff;
+  color: #000;
+}
+.label-card .label-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.label-title {
+  font-weight: 700;
+  font-size: 3mm;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+.label-sub {
+  font-size: 2.4mm;
+  margin-top: 0.6mm;
+}
+.label-meta {
+  font-size: 2mm;
+  margin-top: 0.6mm;
+  color: #333;
+}
+.label-code {
+  font-size: 2mm;
+  margin-top: 0.8mm;
+  letter-spacing: 0.3mm;
+  color: #555;
+  font-family: ui-monospace, monospace;
+}
+.label-qr {
+  flex: 0 0 auto;
+  width: var(--label-qr);
+  height: var(--label-qr);
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .label-print-area,
+  .label-print-area * {
+    visibility: visible !important;
+  }
+  .label-print-area {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+  .label-card {
+    page-break-after: always;
+    break-after: page;
+  }
+  .label-card:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
 }

@@ -39,9 +39,11 @@ import {
   Stat,
   Textarea,
 } from '../components/ui';
+import { LabelPrintModal } from '../components/LabelPrint';
 import { api, ApiError } from '../lib/api';
 import type { BatchForecastResponse, Culture } from '../lib/types';
 import { isHarvestStage, STATUS_META, varianceLabel } from '../lib/forecast';
+import { batchLabelData, cultureLabelData } from '../lib/labels';
 import { formatDate, formatMass, money, perGram } from '../lib/format';
 
 type ModalState =
@@ -58,6 +60,7 @@ export function BatchDetail() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [modal, setModal] = useState<ModalState>({ kind: 'none' });
+  const [labelOpen, setLabelOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const batch = useQuery({ queryKey: ['batch', id], queryFn: () => api.batches.get(id) });
@@ -110,6 +113,10 @@ export function BatchDetail() {
   const grain = cultures.filter((c) => c.type === 'GRAIN');
   const tubs = cultures.filter((c) => c.type === 'BULK');
   const batchEvents = (events.data ?? []).filter((e) => e.batchId === b.id);
+  const labelItems = [
+    batchLabelData(b, strain?.commonName),
+    ...cultures.map((c) => cultureLabelData(c, strain?.commonName)),
+  ];
 
   return (
     <div>
@@ -145,6 +152,9 @@ export function BatchDetail() {
               }}
             >
               Delete batch
+            </Button>
+            <Button variant="secondary" onClick={() => setLabelOpen(true)}>
+              Print labels
             </Button>
             <Button variant="secondary" onClick={() => setModal({ kind: 'cost' })}>
               + Cost
@@ -336,6 +346,13 @@ export function BatchDetail() {
         error={error}
         pending={act.isPending}
         onSubmit={(data) => act.mutate(() => api.costs.create({ ...data, batchId: b.id }))}
+      />
+
+      <LabelPrintModal
+        open={labelOpen}
+        onClose={() => setLabelOpen(false)}
+        items={labelItems}
+        title={`Print labels · ${b.name}`}
       />
     </div>
   );

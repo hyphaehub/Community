@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button, Card, Field, Input, PageHeader, SectionTitle, Spinner } from '../components/ui';
+import { LabelPrintModal } from '../components/LabelPrint';
 import { api } from '../lib/api';
+import { cultureLabelData } from '../lib/labels';
 import { money } from '../lib/format';
 
 export function Jars() {
@@ -19,6 +21,7 @@ export function Jars() {
   const [invId, setInvId] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [assignBatch, setAssignBatch] = useState('');
+  const [labelOpen, setLabelOpen] = useState(false);
 
   const create = useMutation({
     mutationFn: () =>
@@ -107,7 +110,15 @@ export function Jars() {
         </Card>
 
         <div>
-          <SectionTitle>
+          <SectionTitle
+            action={
+              (jars.data ?? []).length > 0 ? (
+                <Button variant="secondary" onClick={() => setLabelOpen(true)}>
+                  Print labels
+                </Button>
+              ) : undefined
+            }
+          >
             Unassigned jars ({jars.data?.length ?? 0})
             {(() => {
               const pending = (jars.data ?? []).reduce((s, j) => s + (j.costCents ?? 0), 0);
@@ -187,6 +198,13 @@ export function Jars() {
           )}
         </div>
       </div>
+
+      <LabelPrintModal
+        open={labelOpen}
+        onClose={() => setLabelOpen(false)}
+        items={(jars.data ?? []).map((j) => cultureLabelData(j))}
+        title="Print jar labels"
+      />
     </div>
   );
 }
