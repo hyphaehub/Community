@@ -2,6 +2,7 @@ import { yieldTotals } from '@hyphaehub/core';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { BatchStatusBadge, CultureStatusBadge } from '../components/status';
+import { RemindersPanel } from '../components/Reminders';
 import { Card, EmptyState, PageHeader, SectionTitle, Spinner, Stat } from '../components/ui';
 import { api } from '../lib/api';
 import { formatMass, formatDate, money } from '../lib/format';
@@ -60,6 +61,12 @@ export function Dashboard() {
           <Stat label="Total spend" value={money(spend)} sub="all batches" />
         )}
       </div>
+
+      {me.data?.features?.forecast !== false && (
+        <div className="mt-8">
+          <RemindersPanel title="Coming up" limit={5} />
+        </div>
+      )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <div>

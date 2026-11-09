@@ -8,7 +8,8 @@ export function toDate(value: string | number | Date | null | undefined): Date |
 /**
  * Return a copy of `obj` with the given keys coerced from ISO strings to Date
  * instances (invalid/null → undefined). The return type reflects the coercion so
- * the result drops straight into Drizzle inserts/updates.
+ * the result drops straight into Drizzle inserts/updates. To *clear* a nullable
+ * date column via PATCH, set `null` on the result explicitly after calling this.
  */
 export function withDates<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,

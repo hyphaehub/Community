@@ -1,0 +1,40 @@
+# Expose HyphaeHub (Community Edition) through a Cloudflare Tunnel — an
+# OUTBOUND-only connection from this host to Cloudflare. It needs no inbound
+# ports, no port forwarding, and no static IP, so it works behind a dynamic
+# residential IP, CGNAT, or a router you can't configure. Cloudflare terminates
+# TLS at its edge and forwards requests to the app container over the internal
+# Docker network; your origin IP is never exposed and never needs to be stable.
+#
+# One-time setup (Cloudflare Zero Trust dashboard -> Networks -> Tunnels):
+#   1. Create a tunnel and copy its connector TOKEN.
+#   2. On the tunnel's "Public Hostname" tab, add a route:
+#        Subdomain / Domain : your hostname, e.g. grow.example.com
+#        Service (Type HTTP): http://hyphaehub:8080
+#      The domain must be on your Cloudflare account; Cloudflare owns its DNS,
+#      so your origin IP is irrelevant and never needs to be stable.
+#
+# Then run (from infra/):
+#   TUNNEL_TOKEN=eyJhbGci... HYPHAEHUB_DOMAIN=grow.example.com \
+#     docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d
+#
+# Finally register https://grow.example.com in the app
+# (Settings -> Connect to Cloud, or the cloud app's "My server" sign-in).
+services:
+  hyphaehub:
+    environment:
+      APP_URL: "https://${HYPHAEHUB_DOMAIN:?set HYPHAEHUB_DOMAIN to your tunnel public hostname}"
+      SITE_URL: "https://${HYPHAEHUB_DOMAIN}"
+      BETTER_AUTH_URL: "https://${HYPHAEHUB_DOMAIN}"
+    # Reached only through the tunnel; don't publish the app port on the host.
+    ports: !reset []
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      - hyphaehub
+    # The token is read from TUNNEL_TOKEN (kept out of the process args).
+    # --no-autoupdate because the image tag controls the version.
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "${TUNNEL_TOKEN:?set TUNNEL_TOKEN to your Cloudflare Tunnel connector token}"

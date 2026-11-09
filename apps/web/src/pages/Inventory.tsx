@@ -1,6 +1,7 @@
-import { INVENTORY_CATEGORIES, toCents } from '@hyphaehub/core';
+import { INVENTORY_CATEGORIES, INVENTORY_LOSS_REASONS, toCents } from '@hyphaehub/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { LabelPrintModal } from '../components/LabelPrint';
 import {
   Badge,
   Button,
@@ -17,13 +18,23 @@ import {
 } from '../components/ui';
 import { ApiError, api } from '../lib/api';
 import { money } from '../lib/format';
+import { inventoryLabelData } from '../lib/labels';
 import type { InventoryItem } from '../lib/types';
 
 type ModalState =
   | { kind: 'none' }
   | { kind: 'add' }
   | { kind: 'edit'; item: InventoryItem }
-  | { kind: 'restock'; item: InventoryItem };
+  | { kind: 'restock'; item: InventoryItem }
+  | { kind: 'loss'; item: InventoryItem };
+
+type AdjustArgs = {
+  id: string;
+  delta: number;
+  kind?: string;
+  reason?: string | null;
+  note?: string | null;
+};
 
 const isLow = (it: InventoryItem) =>
   it.lowStockThreshold != null && it.quantityOnHand <= it.lowStockThreshold;
@@ -32,6 +43,7 @@ export function Inventory() {
   const qc = useQueryClient();
   const [modal, setModal] = useState<ModalState>({ kind: 'none' });
   const [error, setError] = useState<string | null>(null);
+  const [labelOpen, setLabelOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState('ALL');
   const items = useQuery({ queryKey: ['inventory'], queryFn: () => api.inventory.list() });
@@ -62,9 +74,11 @@ export function Inventory() {
     onError: onErr,
   });
   const adjust = useMutation({
-    mutationFn: (v: { id: string; delta: number }) => api.inventory.adjust(v.id, v.delta),
-    onSuccess: () => {
+    mutationFn: (v: AdjustArgs) =>
+      api.inventory.adjust(v.id, v.delta, { kind: v.kind, reason: v.reason, note: v.note }),
+    onSuccess: (_d, v) => {
       invalidate();
+      qc.invalidateQueries({ queryKey: ['inv-adj', v.id] });
       close();
     },
     onError: onErr,
@@ -92,7 +106,16 @@ export function Inventory() {
       <PageHeader
         title="Inventory"
         subtitle="Consumables and supplies, with unit costs that feed your batch cost tracking."
-        action={<Button onClick={() => setModal({ kind: 'add' })}>+ Add item</Button>}
+        action={
+          <div className="flex gap-2">
+            {filtered.length > 0 && (
+              <Button variant="secondary" onClick={() => setLabelOpen(true)}>
+                Print labels
+              </Button>
+            )}
+            <Button onClick={() => setModal({ kind: 'add' })}>+ Add item</Button>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -165,6 +188,13 @@ export function Inventory() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setModal({ kind: 'loss', item: it })}
+                    className="text-xs font-medium text-flush hover:underline"
+                  >
+                    Record loss
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setModal({ kind: 'edit', item: it })}
                     className="text-xs font-medium text-ink/60 hover:text-hyphae-700 hover:underline"
                   >
@@ -206,8 +236,28 @@ export function Inventory() {
         pending={adjust.isPending}
         onClose={close}
         onSubmit={(delta) =>
-          modal.kind === 'restock' && adjust.mutate({ id: modal.item.id, delta })
+          modal.kind === 'restock' &&
+          adjust.mutate({ id: modal.item.id, delta, kind: delta >= 0 ? 'RESTOCK' : 'USAGE' })
         }
+      />
+
+      {/* Record loss */}
+      <LossModal
+        state={modal}
+        error={error}
+        pending={adjust.isPending}
+        onClose={close}
+        onSubmit={(amount, reason, note) =>
+          modal.kind === 'loss' &&
+          adjust.mutate({ id: modal.item.id, delta: -Math.abs(amount), kind: 'LOSS', reason, note })
+        }
+      />
+
+      <LabelPrintModal
+        open={labelOpen}
+        onClose={() => setLabelOpen(false)}
+        items={filtered.map(inventoryLabelData)}
+        title="Print inventory labels"
       />
     </div>
   );
@@ -358,6 +408,114 @@ function RestockModal({
           </Button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+// ── Record loss (write-off with a reason, tracked in the adjustments ledger) ──
+const REASON_LABELS: Record<string, string> = {
+  CONTAMINATION: 'Contamination',
+  SPILLAGE: 'Spillage',
+  EXPIRED: 'Expired',
+  DAMAGED: 'Damaged',
+  OTHER: 'Other',
+};
+const KIND_LABELS: Record<string, string> = {
+  RESTOCK: 'Restock',
+  LOSS: 'Loss',
+  USAGE: 'Usage',
+  CORRECTION: 'Correction',
+};
+
+function LossModal({
+  state,
+  error,
+  pending,
+  onClose,
+  onSubmit,
+}: {
+  state: ModalState;
+  error: string | null;
+  pending: boolean;
+  onClose: () => void;
+  onSubmit: (amount: number, reason: string, note: string | null) => void;
+}) {
+  const isOpen = state.kind === 'loss';
+  const item = state.kind === 'loss' ? state.item : null;
+  const history = useQuery({
+    queryKey: ['inv-adj', item?.id],
+    queryFn: () => api.inventory.adjustments(item?.id ?? ''),
+    enabled: isOpen && !!item,
+  });
+  if (!item) return null;
+  return (
+    <Modal open onClose={onClose} title={`Record loss · ${item.name}`}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          const amount = Number(f.get('amount') || 0);
+          if (amount > 0)
+            onSubmit(amount, String(f.get('reason')), String(f.get('note') || '') || null);
+        }}
+        className="space-y-4"
+      >
+        <p className="text-sm text-ink/60">
+          On hand:{' '}
+          <span className="font-medium text-substrate">
+            {item.quantityOnHand} {item.unit}
+          </span>
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={`Quantity lost (${item.unit})`}>
+            <Input name="amount" type="number" step="any" min={0} autoFocus placeholder="e.g. 2" />
+          </Field>
+          <Field label="Reason">
+            <Select name="reason" defaultValue={INVENTORY_LOSS_REASONS[0]}>
+              {INVENTORY_LOSS_REASONS.map((rn) => (
+                <option key={rn} value={rn}>
+                  {REASON_LABELS[rn] ?? rn}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <Field label="Note" hint="optional detail">
+          <Input name="note" placeholder="e.g. green mold in 3 jars" />
+        </Field>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={pending} className="bg-flush hover:bg-flush-600">
+            {pending ? 'Recording…' : 'Record loss'}
+          </Button>
+        </div>
+      </form>
+
+      {(history.data ?? []).length > 0 && (
+        <div className="mt-5 border-t border-mycelium pt-4">
+          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-cap/80">
+            Recent adjustments
+          </div>
+          <div className="max-h-40 space-y-1 overflow-y-auto text-sm">
+            {(history.data ?? []).map((a) => (
+              <div key={a.id} className="flex items-center justify-between gap-2">
+                <span className="text-ink/70">
+                  {KIND_LABELS[a.kind] ?? a.kind}
+                  {a.reason ? ` · ${REASON_LABELS[a.reason] ?? a.reason.toLowerCase()}` : ''}
+                  {a.note ? ` · ${a.note}` : ''}
+                </span>
+                <span className={cn('font-medium', a.delta < 0 ? 'text-flush' : 'text-hyphae-700')}>
+                  {a.delta > 0 ? '+' : ''}
+                  {a.delta} {item.unit}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

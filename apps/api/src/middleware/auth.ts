@@ -1,10 +1,10 @@
-import type { FeatureKey, MembershipRole } from '@hyphaehub/core';
+import type { FeatureKey, MembershipRole, Plan } from '@hyphaehub/core';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
-import type { AppEnv } from '../types';
 import { resolveAuthConfig } from '../lib/auth-config';
 import { getFeaturesForWorkspace } from '../lib/features';
 import { resolveActiveWorkspace } from '../lib/workspace';
+import type { AppEnv } from '../types';
 
 /** Whether an email is the configured super admin (case-insensitive). */
 export function isSuperAdminEmail(email: string | undefined, superAdminEmail?: string): boolean {
@@ -70,6 +70,21 @@ export function requireOrgRole(...roles: MembershipRole[]) {
 }
 
 /**
+ * Require the active workspace to be on one of the given plans. Must run after
+ * `requireAuth`. 402 (payment required) so the client can prompt an upgrade.
+ */
+export function requirePlan(...plans: Plan[]) {
+  return createMiddleware<AppEnv>(async (c, next) => {
+    if (!plans.includes(c.var.workspace.plan)) {
+      throw new HTTPException(402, {
+        message: `This feature requires the ${plans.join(' or ')} plan.`,
+      });
+    }
+    await next();
+  });
+}
+
+/**
  * Require a feature flag to be enabled for the active organization. Must run
  * after `requireAuth`. Returns 404 (feature hidden) when disabled.
  */
@@ -77,7 +92,9 @@ export function requireFeature(key: FeatureKey) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const features = await getFeaturesForWorkspace(c.var.db, c.var.workspace);
     if (!features[key]) {
-      throw new HTTPException(404, { message: 'This feature is not enabled for this organization.' });
+      throw new HTTPException(404, {
+        message: 'This feature is not enabled for this organization.',
+      });
     }
     await next();
   });

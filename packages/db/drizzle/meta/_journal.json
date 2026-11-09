@@ -50,6 +50,83 @@
       "when": 1788641970050,
       "tag": "0006_lying_oracle",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788649045157,
+      "tag": "0007_clumsy_albert_cleary",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788706356842,
+      "tag": "0008_broken_wolfsbane",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1788876690291,
+      "tag": "0009_certain_triathlon",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1788879740980,
+      "tag": "0010_worthless_supernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790802712435,
+      "tag": "0011_naive_dark_beast",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790804038228,
+      "tag": "0012_pale_korvac",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1793031530300,
+      "tag": "0013_faulty_surge",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1793827899820,
+      "tag": "0014_next_captain_midlands",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1793829608426,
+      "tag": "0015_spicy_dragon_lord",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1794167096151,
+      "tag": "0016_sweet_jean_grey",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1794169815142,
+      "tag": "0017_dazzling_baron_strucker",
+      "breakpoints": true
     }
   ]
 }

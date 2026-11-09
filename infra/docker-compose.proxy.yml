@@ -1,0 +1,40 @@
+# HTTPS front door for HyphaeHub (Community Edition) via Caddy, with automatic
+# Let's Encrypt certificates. This is what makes a self-host reachable over
+# HTTPS so the official cloud app + mobile app can Cloud Connect to it.
+#
+# Point your domain's DNS A/AAAA record at this host, then:
+#
+#   HYPHAEHUB_DOMAIN=grow.example.com \
+#     docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+#
+# Caddy terminates TLS on 443 and forwards to the app container. The app's
+# APP_URL / SITE_URL / BETTER_AUTH_URL are set to your https:// URL so sessions,
+# CORS, and Cloud Connect all trust the public origin.
+services:
+  hyphaehub:
+    environment:
+      APP_URL: "https://${HYPHAEHUB_DOMAIN:?set HYPHAEHUB_DOMAIN to your public hostname}"
+      SITE_URL: "https://${HYPHAEHUB_DOMAIN}"
+      BETTER_AUTH_URL: "https://${HYPHAEHUB_DOMAIN}"
+    # The app is reached only through the proxy now; don't publish it directly.
+    ports: !reset []
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - hyphaehub
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      HYPHAEHUB_DOMAIN: "${HYPHAEHUB_DOMAIN}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

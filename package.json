@@ -16,6 +16,11 @@
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "sync:mobile": "node scripts/sync-standalone-mobile.mjs",
+    "e2e:selfhost": "node scripts/e2e-selfhost.mjs",
+    "e2e:transfer": "node scripts/e2e-transfer.mjs",
+    "e2e:connect-admin": "node scripts/e2e-connect-admin.mjs",
+    "e2e:telemetry": "node scripts/e2e-telemetry.mjs",
     "clean": "turbo run clean && rimraf node_modules"
   },
   "devDependencies": {

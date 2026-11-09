@@ -1,0 +1,1 @@
+ALTER TABLE `workspaces` ADD `calendar_token` text;

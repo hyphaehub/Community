@@ -1,12 +1,16 @@
 import { zValidator } from '@hono/zod-validator';
 import { gramsToUnit, jarAssignSchema, jarCreateSchema, round } from '@hyphaehub/core';
-import { batches, costEntries, cultures, inventoryItems } from '@hyphaehub/db';
+import { type HyphaeBatchItem, batches, costEntries, cultures, inventoryItems } from '@hyphaehub/db';
 import { and, count, eq, inArray, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import { chunk, insertChunkSize } from '../lib/batch';
 import { enforceLimit } from '../lib/workspace';
 import { requireAuth, requireFeature } from '../middleware/auth';
 import type { AppEnv } from '../types';
+
+/** Params bound per `cultures` INSERT row: explicit fields + id/createdAt/updatedAt. */
+const CULTURE_INSERT_PARAMS_PER_ROW = 15;
 
 const r = new Hono<AppEnv>();
 r.use('*', requireAuth);
@@ -41,10 +45,13 @@ r.post('/', zValidator('json', jarCreateSchema), async (c) => {
   await enforceLimit(db, ws, 'maxCultures', cur?.n ?? 0, body.count);
 
   // Grain per jar is entered in GRAMS; convert to the inventory item's own unit
-  // (kg, lb, oz, g, …) for the draw-down and cost.
+  // (kg, lb, oz, g, …) for the draw-down and cost. We only READ + compute here;
+  // the inventory write is deferred into the atomic batch below so a failed jar
+  // insert can never leave stock reduced without the jars to show for it.
   const totalGrams = (body.quantity ?? 0) * body.count;
   let costCents = body.costCents ?? 0;
   const inventoryItemId = body.inventoryItemId ?? null;
+  let inventoryUpdate: HyphaeBatchItem | null = null;
 
   if (inventoryItemId) {
     const [item] = await db
@@ -58,7 +65,7 @@ r.post('/', zValidator('json', jarCreateSchema), async (c) => {
       // "bag"), we can't auto-convert, so skip the draw-down rather than guess.
       const deducted = gramsToUnit(totalGrams, item.unit);
       if (deducted != null) {
-        await db
+        inventoryUpdate = db
           .update(inventoryItems)
           .set({ quantityOnHand: round((item.quantityOnHand ?? 0) - deducted, 4) })
           .where(eq(inventoryItems.id, inventoryItemId));
@@ -88,7 +95,20 @@ r.post('/', zValidator('json', jarCreateSchema), async (c) => {
     costCents: costCents > 0 ? base + (i < remainder ? 1 : 0) : null,
     inoculatedAt,
   }));
-  const jars = await db.insert(cultures).values(values).returning();
+
+  // D1 caps bound parameters at 100 per statement, so split the insert into
+  // chunks that stay under it, then run the (optional) inventory draw-down plus
+  // every insert chunk as ONE atomic batch — all succeed or none do.
+  const inserts = chunk(values, insertChunkSize(CULTURE_INSERT_PARAMS_PER_ROW)).map((rows) =>
+    db.insert(cultures).values(rows).returning(),
+  );
+  const statements = (inventoryUpdate ? [inventoryUpdate, ...inserts] : inserts) as [
+    HyphaeBatchItem,
+    ...HyphaeBatchItem[],
+  ];
+  const results = await db.batch(statements);
+  const jarRows = (inventoryUpdate ? results.slice(1) : results) as (typeof cultures.$inferSelect)[][];
+  const jars = jarRows.flat();
 
   return c.json({ jars, costCents, inventoryItemId }, 201);
 });
@@ -105,33 +125,48 @@ r.post('/assign', zValidator('json', jarAssignSchema), async (c) => {
     .limit(1);
   if (!batch) throw new HTTPException(404, { message: 'Batch not found.' });
 
-  const scope = and(
-    eq(cultures.workspaceId, ws.id),
-    eq(cultures.type, 'GRAIN'),
-    inArray(cultures.id, jarIds),
-  );
-  // Sum the pending grain cost of the jars being assigned, then attribute it to
-  // the batch and clear it from the jars (so a later reassign never double-posts).
-  const matching = await db.select({ costCents: cultures.costCents }).from(cultures).where(scope);
-  const totalCost = matching.reduce((s, j) => s + (j.costCents ?? 0), 0);
+  // inArray binds one bound parameter per id, so split jarIds into chunks that
+  // keep each statement's WHERE under D1's 100-parameter cap (2 eq() params +
+  // the id list). jarAssignSchema allows up to 200 ids → at most 3 chunks.
+  const idChunks = chunk(jarIds, 90);
+  const scopeFor = (ids: string[]) =>
+    and(eq(cultures.workspaceId, ws.id), eq(cultures.type, 'GRAIN'), inArray(cultures.id, ids));
 
-  const updated = await db.update(cultures).set({ batchId, costCents: null }).where(scope).returning();
-
-  let cost = null;
-  if (totalCost > 0 && updated.length > 0) {
-    const [entry] = await db
-      .insert(costEntries)
-      .values({
-        workspaceId: ws.id,
-        batchId,
-        description: `Grain for ${updated.length} jar${updated.length === 1 ? '' : 's'}`,
-        category: 'CONSUMABLE',
-        amountCents: totalCost,
-      })
-      .returning();
-    cost = entry ?? null;
+  // Sum the pending grain cost of the jars being assigned (chunked read).
+  let assigned = 0;
+  let totalCost = 0;
+  for (const ids of idChunks) {
+    const rows = await db.select({ costCents: cultures.costCents }).from(cultures).where(scopeFor(ids));
+    assigned += rows.length;
+    totalCost += rows.reduce((s, j) => s + (j.costCents ?? 0), 0);
   }
-  return c.json({ assigned: updated.length, cost });
+
+  // Attribute the grain cost to the batch and clear it from the jars atomically:
+  // every chunked UPDATE plus the cost entry land together or not at all, so a
+  // failure can't leave jars assigned with their pending cost silently wiped.
+  const postCost = totalCost > 0 && assigned > 0;
+  const writes: HyphaeBatchItem[] = idChunks.map((ids) =>
+    db.update(cultures).set({ batchId, costCents: null }).where(scopeFor(ids)),
+  );
+  if (postCost) {
+    writes.push(
+      db
+        .insert(costEntries)
+        .values({
+          workspaceId: ws.id,
+          batchId,
+          description: `Grain for ${assigned} jar${assigned === 1 ? '' : 's'}`,
+          category: 'CONSUMABLE',
+          amountCents: totalCost,
+        })
+        .returning(),
+    );
+  }
+  const results = await db.batch(writes as [HyphaeBatchItem, ...HyphaeBatchItem[]]);
+  const cost = postCost
+    ? ((results[results.length - 1] as (typeof costEntries.$inferSelect)[])[0] ?? null)
+    : null;
+  return c.json({ assigned, cost });
 });
 
 export default r;

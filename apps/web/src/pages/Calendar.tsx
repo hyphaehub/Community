@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Badge, Button, Card, EmptyState, PageHeader, Spinner, Stat } from '../components/ui';
+import { CalendarExportButton, RemindersPanel } from '../components/Reminders';
+import { Button, Card, EmptyState, PageHeader, Spinner, Stat } from '../components/ui';
 import { cn } from '../components/ui';
 import { api } from '../lib/api';
 import { STATUS_META, dayKey, isHarvestStage } from '../lib/forecast';
@@ -58,12 +59,15 @@ export function Calendar() {
         title="Calendar"
         subtitle="Predicted cycles for every batch, and a forecast to keep output steady."
         action={
-          <Link
-            to="/batches"
-            className="rounded-lg bg-hyphae-600 px-4 py-2 text-sm font-medium text-spore hover:bg-hyphae-700"
-          >
-            + New batch
-          </Link>
+          <div className="flex items-start gap-2">
+            <CalendarExportButton />
+            <Link
+              to="/batches"
+              className="rounded-lg bg-hyphae-600 px-4 py-2 text-sm font-medium text-spore hover:bg-hyphae-700"
+            >
+              + New batch
+            </Link>
+          </div>
         }
       />
 
@@ -172,7 +176,7 @@ export function Calendar() {
             )}
           </div>
 
-          <UpcomingList p={p} />
+          <RemindersPanel title="Reminders" />
         </div>
       </div>
     </div>
@@ -328,68 +332,6 @@ function StaggerCard({ p }: { p?: CalendarResponse }) {
       <p className="mt-1 text-xs text-ink/50">
         Based on a {s.pipelineDays}-day pipeline to first flush.
       </p>
-    </Card>
-  );
-}
-
-function UpcomingList({ p }: { p?: CalendarResponse }) {
-  const now = Date.now();
-  const upcoming = (p?.milestones ?? [])
-    .filter(
-      (m) => !m.actualAt && m.predictedAt && new Date(m.predictedAt).getTime() >= now - DAY_MS,
-    )
-    .slice(0, 10);
-  const overdue = (p?.milestones ?? []).filter((m) => m.status === 'overdue');
-
-  return (
-    <div>
-      <h2 className="mb-3 text-lg font-semibold text-substrate">Upcoming</h2>
-      {overdue.length > 0 && (
-        <div className="mb-3 space-y-1.5">
-          {overdue.map((m, i) => (
-            <MilestoneRow key={`od-${m.batchId}-${m.stage}-${i}`} m={m} />
-          ))}
-        </div>
-      )}
-      {upcoming.length === 0 ? (
-        <EmptyState
-          title="Nothing scheduled"
-          hint="Predicted stages for your batches will appear here."
-        />
-      ) : (
-        <div className="space-y-1.5">
-          {upcoming.map((m, i) => (
-            <MilestoneRow key={`up-${m.batchId}-${m.stage}-${i}`} m={m} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MilestoneRow({ m }: { m: CalMilestone }) {
-  const meta = STATUS_META[m.status] ?? { label: m.status, badge: 'neutral' as const };
-  return (
-    <Card className="flex items-center justify-between gap-3 p-3">
-      <div className="min-w-0">
-        <div className="truncate text-sm font-medium text-substrate">
-          {m.label}
-          {m.batchName ? ` · ${m.batchName}` : ''}
-        </div>
-        <div className="text-xs text-ink/50">
-          {formatDate(m.predictedAt)}
-          {m.expectedYieldG != null && ` · ~${formatMass(m.expectedYieldG)} dry`}
-        </div>
-      </div>
-      <div className="shrink-0">
-        {m.batchId ? (
-          <Link to={`/batches/${m.batchId}`}>
-            <Badge color={meta.badge}>{meta.label}</Badge>
-          </Link>
-        ) : (
-          <Badge color={meta.badge}>{meta.label}</Badge>
-        )}
-      </div>
     </Card>
   );
 }

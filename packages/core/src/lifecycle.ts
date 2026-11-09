@@ -1,8 +1,12 @@
 import {
+  type ContaminantType,
+  type ContaminationCause,
   type CultureStatus,
   type CultureType,
   type EventType,
   LIFECYCLE_ORDER,
+  type LibraryFormat,
+  type SourceForm,
 } from './enums';
 
 const TERMINAL: CultureStatus[] = ['CONTAMINATED', 'SPENT', 'STORED'];
@@ -52,4 +56,52 @@ export const EVENT_LABELS: Record<EventType, string> = {
   DRYING: 'Drying',
   STORED: 'Stored',
   NOTE: 'Note',
+};
+
+export const CONTAMINANT_TYPE_LABELS: Record<ContaminantType, string> = {
+  TRICHODERMA: 'Trichoderma (green mold)',
+  COBWEB: 'Cobweb mold',
+  BACTERIAL: 'Bacterial (wet, sour)',
+  WET_SPOT: 'Wet spot / bacterial blotch',
+  BLACK_MOLD: 'Black mold (Aspergillus)',
+  GREEN_MOLD: 'Green mold (Penicillium)',
+  PINK_MOLD: 'Pink mold (Neurospora)',
+  YEAST: 'Yeast',
+  MITES: 'Mites',
+  UNKNOWN: 'Unknown',
+  OTHER: 'Other',
+};
+
+export const SOURCE_FORM_LABELS: Record<SourceForm, string> = {
+  SPORE_PRINT: 'Spore print',
+  SPORE_SYRINGE: 'Spore syringe',
+  LIQUID_CULTURE: 'Liquid culture',
+  AGAR: 'Agar culture',
+  CLONE: 'Clone (tissue)',
+  COMMERCIAL_CULTURE: 'Commercial culture',
+  GIFT: 'Gift / swap',
+  OTHER: 'Other',
+};
+
+export const LIBRARY_FORMAT_LABELS: Record<LibraryFormat, string> = {
+  AGAR_PLATE: 'Agar plate',
+  AGAR_SLANT: 'Agar slant',
+  LIQUID_CULTURE: 'Liquid culture',
+  CRYO: 'Cryo (glycerol)',
+  SPORE_PRINT: 'Spore print',
+  SPORE_SYRINGE: 'Spore syringe',
+  GRAIN: 'Grain master',
+  OTHER: 'Other',
+};
+
+export const CONTAMINATION_CAUSE_LABELS: Record<ContaminationCause, string> = {
+  STERILE_TECHNIQUE: 'Sterile technique slip',
+  SUBSTRATE_PREP: 'Substrate prep',
+  UNDER_STERILIZED: 'Under-sterilized',
+  ENVIRONMENTAL: 'Environmental / air',
+  GRAIN_QUALITY: 'Grain quality',
+  CONTAMINATED_SOURCE: 'Contaminated source/genetics',
+  SLOW_COLONIZATION: 'Slow colonization',
+  UNKNOWN: 'Unknown',
+  OTHER: 'Other',
 };

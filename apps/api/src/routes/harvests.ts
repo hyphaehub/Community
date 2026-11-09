@@ -1,6 +1,6 @@
 import { zValidator } from '@hono/zod-validator';
 import { harvestCreateSchema, harvestUpdateSchema } from '@hyphaehub/core';
-import { cultures, harvests } from '@hyphaehub/db';
+import { cultures, harvests, type HyphaeBatchItem } from '@hyphaehub/db';
 import { and, asc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { withDates } from '../lib/dates';
@@ -38,7 +38,8 @@ r.post('/', zValidator('json', harvestCreateSchema), async (c) => {
   if (!culture) return c.json({ error: 'Culture not found' }, 404);
 
   const values = withDates(data, ['harvestedAt', 'driedAt']);
-  const rows = await c.var.db
+  // Record the harvest and advance the tub into the harvesting stage atomically.
+  const insert = c.var.db
     .insert(harvests)
     .values({
       ...values,
@@ -47,13 +48,13 @@ r.post('/', zValidator('json', harvestCreateSchema), async (c) => {
       harvestedAt: values.harvestedAt ?? new Date(),
     })
     .returning();
-
-  // Advance the tub into the harvesting stage.
+  const writes: HyphaeBatchItem[] = [insert];
   if (culture.status !== 'HARVESTING') {
-    await c.var.db.update(cultures).set({ status: 'HARVESTING' }).where(eq(cultures.id, culture.id));
+    writes.push(c.var.db.update(cultures).set({ status: 'HARVESTING' }).where(eq(cultures.id, culture.id)));
   }
+  const results = await c.var.db.batch(writes as [HyphaeBatchItem, ...HyphaeBatchItem[]]);
 
-  return c.json(rows[0], 201);
+  return c.json((results[0] as (typeof harvests.$inferSelect)[])[0], 201);
 });
 
 r.patch('/:id', zValidator('json', harvestUpdateSchema), async (c) => {

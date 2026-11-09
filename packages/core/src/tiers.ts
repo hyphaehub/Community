@@ -18,6 +18,8 @@ export interface PlanLimits {
   cloudSync: boolean;
   /** Analytics dashboards + CSV/PDF export. */
   analytics: boolean;
+  /** Use the official cloud web + mobile clients against a self-hosted instance. */
+  selfHostConnect: boolean;
 }
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
@@ -31,6 +33,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxOrgs: 1,
     cloudSync: false,
     analytics: false,
+    selfHostConnect: false,
   },
   PRO: {
     label: 'Pro',
@@ -42,6 +45,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxOrgs: 3,
     cloudSync: true,
     analytics: true,
+    selfHostConnect: false,
   },
   FARM: {
     label: 'Farm',
@@ -53,6 +57,21 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxOrgs: null,
     cloudSync: true,
     analytics: true,
+    selfHostConnect: true,
+  },
+  // Bring-your-own-server: keep data on a self-hosted instance, use the official
+  // cloud web + mobile clients against it. Cloud-side quotas are not the point here.
+  CONNECT: {
+    label: 'Connect',
+    priceMonthlyUsd: 5,
+    maxActiveBatches: null,
+    maxCultures: null,
+    maxPhotos: null,
+    maxMembers: 1,
+    maxOrgs: 1,
+    cloudSync: true,
+    analytics: true,
+    selfHostConnect: true,
   },
 };
 

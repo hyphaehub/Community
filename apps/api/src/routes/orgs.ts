@@ -10,7 +10,7 @@ import {
   type Plan,
   PLAN_LIMITS,
 } from '@hyphaehub/core';
-import { memberships, user as userTable, workspaces } from '@hyphaehub/db';
+import { type HyphaeBatchItem, memberships, newId, user as userTable, workspaces } from '@hyphaehub/db';
 import { and, asc, eq } from 'drizzle-orm';
 import { type Context, Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -88,14 +88,17 @@ r.post('/', zValidator('json', orgCreateSchema), async (c) => {
     }
   }
 
-  const [ws] = await c.var.db
-    .insert(workspaces)
-    .values({ name, ownerUserId: c.var.user.id })
-    .returning();
+  // Create the workspace and its OWNER membership atomically — otherwise a
+  // failed membership insert leaves an orphan workspace that is invisible to the
+  // owner yet still consumes their plan's org slot.
+  const wsId = newId();
+  const writes: HyphaeBatchItem[] = [
+    c.var.db.insert(workspaces).values({ id: wsId, name, ownerUserId: c.var.user.id }).returning(),
+    c.var.db.insert(memberships).values({ workspaceId: wsId, userId: c.var.user.id, role: 'OWNER' }),
+  ];
+  const results = await c.var.db.batch(writes as [HyphaeBatchItem, ...HyphaeBatchItem[]]);
+  const ws = (results[0] as (typeof workspaces.$inferSelect)[])[0];
   if (!ws) throw new HTTPException(500, { message: 'Failed to create organization' });
-  await c.var.db
-    .insert(memberships)
-    .values({ workspaceId: ws.id, userId: c.var.user.id, role: 'OWNER' });
   return c.json({ id: ws.id, name: ws.name, plan: ws.plan, role: 'OWNER' }, 201);
 });
 

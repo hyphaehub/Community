@@ -1,6 +1,6 @@
 import { zValidator } from '@hono/zod-validator';
 import { type CultureStatus, eventCreateSchema } from '@hyphaehub/core';
-import { cultures, events } from '@hyphaehub/db';
+import { cultures, events, type HyphaeBatchItem } from '@hyphaehub/db';
 import { and, desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { toDate } from '../lib/dates';
@@ -34,7 +34,7 @@ r.post('/', zValidator('json', eventCreateSchema), async (c) => {
   if (!culture) return c.json({ error: 'Culture not found' }, 404);
 
   const occurredAt = toDate(data.occurredAt) ?? new Date();
-  const rows = await c.var.db
+  const insert = c.var.db
     .insert(events)
     .values({
       workspaceId: ws.id,
@@ -86,11 +86,14 @@ r.post('/', zValidator('json', eventCreateSchema), async (c) => {
       patch.status = 'STORED';
       break;
   }
+  // Record the event and its derived culture-status change atomically.
+  const writes: HyphaeBatchItem[] = [insert];
   if (Object.keys(patch).length > 0) {
-    await c.var.db.update(cultures).set(patch).where(eq(cultures.id, culture.id));
+    writes.push(c.var.db.update(cultures).set(patch).where(eq(cultures.id, culture.id)));
   }
+  const results = await c.var.db.batch(writes as [HyphaeBatchItem, ...HyphaeBatchItem[]]);
 
-  return c.json(rows[0], 201);
+  return c.json((results[0] as (typeof events.$inferSelect)[])[0], 201);
 });
 
 r.delete('/:id', async (c) => {

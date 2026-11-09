@@ -4,21 +4,34 @@ import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import { auditMiddleware } from './lib/audit';
 import { resolveAuthConfig } from './lib/auth-config';
+import { connectOrigins } from './lib/origins';
 import { isSuperAdminEmail } from './middleware/auth';
 import admin from './routes/admin';
+import ai from './routes/ai';
 import audit from './routes/audit';
 import batches from './routes/batches';
 import billing from './routes/billing';
+import connect from './routes/connect';
 import costs from './routes/costs';
 import cultures from './routes/cultures';
+import environment from './routes/environment';
 import events from './routes/events';
 import forecast from './routes/forecast';
 import harvests from './routes/harvests';
+import ical from './routes/ical';
 import inventory from './routes/inventory';
 import jars from './routes/jars';
+import library from './routes/library';
+import logs from './routes/logs';
+import marketplace from './routes/marketplace';
 import orgs from './routes/orgs';
 import photos from './routes/photos';
+import portal from './routes/portal';
+import reports from './routes/reports';
 import strains from './routes/strains';
+import telemetry from './routes/telemetry';
+import transfer from './routes/transfer';
+import waitlist from './routes/waitlist';
 import workspace from './routes/workspace';
 import type { AppEnv } from './types';
 
@@ -31,21 +44,28 @@ export function buildApp(platform: MiddlewareHandler<AppEnv>) {
   const app = new Hono<AppEnv>();
 
   app.use('*', logger());
-  app.use('*', cors({
-    origin: (origin, c) => {
-      const allow = [
-        c.env.APP_URL,
-        c.env.SITE_URL,
-        'http://localhost:5173',
-        'http://localhost:4321',
-        'http://localhost:8081',
-      ].filter(Boolean) as string[];
-      return allow.includes(origin) ? origin : (allow[0] ?? '*');
-    },
-    credentials: true,
-    allowHeaders: ['content-type', 'authorization', 'x-workspace-id'],
-    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  }));
+  app.use(
+    '*',
+    cors({
+      origin: (origin, c) => {
+        const allow = [
+          c.env.APP_URL,
+          c.env.SITE_URL,
+          // Official cloud clients (Cloud Connect) so a self-hosted instance accepts them.
+          ...connectOrigins(c.env),
+          'http://localhost:5173',
+          'http://localhost:4321',
+          'http://localhost:8081',
+        ].filter(Boolean) as string[];
+        return allow.includes(origin) ? origin : (allow[0] ?? '*');
+      },
+      credentials: true,
+      allowHeaders: ['content-type', 'authorization', 'x-workspace-id'],
+      // Expose the bearer token so cross-origin (Cloud Connect) web clients can read it.
+      exposeHeaders: ['set-auth-token'],
+      allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    }),
+  );
   app.use('*', platform);
   app.use('*', auditMiddleware);
 
@@ -56,7 +76,17 @@ export function buildApp(platform: MiddlewareHandler<AppEnv>) {
   // Uses the SAME resolver as createAuth so config can't diverge from reality.
   app.get('/api/config', (c) => {
     const { auth0Enabled, emailPasswordEnabled } = resolveAuthConfig(c.env);
-    return c.json({ auth0Enabled, emailPasswordEnabled });
+    // Photos require configured object storage (R2 in cloud, FS in self-host).
+    // `edition` lets the web app show the self-host-only "Connect to Cloud" flow;
+    // `cloudUrl` is where that flow sends the operator to confirm the link.
+    const edition = c.env.EDITION === 'community' ? 'community' : 'cloud';
+    return c.json({
+      auth0Enabled,
+      emailPasswordEnabled,
+      photosEnabled: c.var.storage.enabled,
+      edition,
+      cloudUrl: c.env.CLOUD_URL ?? 'https://app.hyphaehub.io',
+    });
   });
 
   // Public: pre-launch gate check. Returns { allowed } = the caller is signed in
@@ -73,6 +103,9 @@ export function buildApp(platform: MiddlewareHandler<AppEnv>) {
     return c.json({ allowed });
   });
 
+  // Public: join the early-access waitlist (no auth).
+  app.route('/api/waitlist', waitlist);
+
   // better-auth handles sign-up / sign-in / session / OIDC under /api/auth/*.
   app.on(['POST', 'GET'], '/api/auth/*', (c) => c.var.auth.handler(c.req.raw));
 
@@ -81,14 +114,25 @@ export function buildApp(platform: MiddlewareHandler<AppEnv>) {
   app.route('/api/cultures', cultures);
   app.route('/api/events', events);
   app.route('/api/forecast', forecast);
+  app.route('/api/ical', ical);
   app.route('/api/harvests', harvests);
   app.route('/api/inventory', inventory);
   app.route('/api/jars', jars);
+  app.route('/api/library', library);
+  app.route('/api/logs', logs);
+  app.route('/api/environment', environment);
+  app.route('/api/reports', reports);
+  app.route('/api/ai', ai);
+  app.route('/api/marketplace', marketplace);
+  app.route('/api/portal', portal);
   app.route('/api/costs', costs);
   app.route('/api/photos', photos);
   app.route('/api/orgs', orgs);
   app.route('/api/audit', audit);
   app.route('/api/billing', billing);
+  app.route('/api/transfer', transfer);
+  app.route('/api/connect', connect);
+  app.route('/api/telemetry', telemetry);
   app.route('/api/admin', admin);
   app.route('/api', workspace);
 

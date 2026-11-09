@@ -7,9 +7,48 @@ import {
   verification,
   workspaces,
 } from '@hyphaehub/db';
+import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
+import { createAuthMiddleware } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer, genericOAuth } from 'better-auth/plugins';
+
+/**
+ * @better-auth/expo's "append the session cookie to the native redirect" hook
+ * only matches the standard social-provider callback path (`/callback/*`). Auth0
+ * runs through genericOAuth, whose callback is `/oauth2/callback/:providerId`, so
+ * that hook never fires and the mobile app gets a redirect with no token. This
+ * plugin mirrors the expo hook for the genericOAuth path: when the callback
+ * redirects to a non-http (app-scheme) trusted origin, it moves the Set-Cookie
+ * into a `cookie` query param the app can read. No-op for the web (https redirects).
+ */
+const expoGenericOAuthBridge = {
+  id: 'expo-generic-oauth-bridge',
+  hooks: {
+    after: [
+      {
+        matcher: (context: { path?: string }) => !!context.path?.startsWith('/oauth2/callback'),
+        handler: createAuthMiddleware(async (ctx) => {
+          const headers = ctx.context.responseHeaders;
+          const location = headers?.get('location');
+          if (!location) return;
+          let redirectURL: URL;
+          try {
+            redirectURL = new URL(location);
+          } catch {
+            return;
+          }
+          if (redirectURL.protocol === 'http:' || redirectURL.protocol === 'https:') return;
+          if (!ctx.context.isTrustedOrigin(location)) return;
+          const cookie = headers?.get('set-cookie');
+          if (!cookie) return;
+          redirectURL.searchParams.set('cookie', cookie);
+          ctx.setHeader('location', redirectURL.toString());
+        }),
+      },
+    ],
+  },
+};
 
 export interface Auth0Config {
   domain: string;
@@ -36,8 +75,12 @@ export interface AuthConfig {
  */
 export function createAuth(db: HyphaeDB, cfg: AuthConfig) {
   // biome-ignore lint/suspicious/noExplicitAny: better-auth plugin array is heterogeneous
-  const plugins: any[] = [bearer()];
+  // `expo()` lets the native app complete OAuth: on a redirect to the app's
+  // custom scheme (a trusted origin) it appends the session cookie so the app
+  // can read the token. Harmless for the web (only acts on non-http redirects).
+  const plugins: any[] = [bearer(), expo()];
   if (cfg.auth0) {
+    plugins.push(expoGenericOAuthBridge);
     plugins.push(
       genericOAuth({
         config: [

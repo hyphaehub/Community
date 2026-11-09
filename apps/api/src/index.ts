@@ -3,6 +3,7 @@ import { createMiddleware } from 'hono/factory';
 import { buildApp } from './app';
 import { createAuth } from './auth';
 import { resolveAuthConfig } from './lib/auth-config';
+import { connectOrigins } from './lib/origins';
 import { NullStorage, R2Storage } from './storage';
 import type { AppEnv } from './types';
 
@@ -20,8 +21,11 @@ const platform = createMiddleware<AppEnv>(async (c, next) => {
       trustedOrigins: [
         env.APP_URL,
         env.SITE_URL,
+        ...connectOrigins(env),
         'http://localhost:5173',
         'http://localhost:4321',
+        // Native app deep-link scheme — lets the mobile Auth0 flow redirect back.
+        'hyphaehub://',
       ].filter(Boolean) as string[],
       cookieDomain: env.COOKIE_DOMAIN,
       auth0: authCfg.auth0,

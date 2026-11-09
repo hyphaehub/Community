@@ -2,6 +2,8 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 
 /** Minimal object-storage abstraction shared by R2 (cloud) and FS (self-host). */
 export interface Storage {
+  /** Whether uploads actually work (false for NullStorage → photos disabled). */
+  readonly enabled: boolean;
   put(key: string, body: ArrayBuffer | Uint8Array, contentType?: string): Promise<void>;
   get(key: string): Promise<{ body: ReadableStream; contentType?: string } | null>;
   delete(key: string): Promise<void>;
@@ -9,6 +11,7 @@ export interface Storage {
 
 /** Cloudflare R2-backed storage. */
 export class R2Storage implements Storage {
+  readonly enabled = true;
   constructor(private bucket: R2Bucket) {}
 
   async put(key: string, body: ArrayBuffer | Uint8Array, contentType?: string): Promise<void> {
@@ -33,6 +36,7 @@ export class R2Storage implements Storage {
 
 /** No-op storage used when no bucket is configured (photos disabled). */
 export class NullStorage implements Storage {
+  readonly enabled = false;
   async put(): Promise<void> {
     throw new Error('Photo storage is not configured');
   }

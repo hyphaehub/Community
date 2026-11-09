@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "deploy": "wrangler deploy",
+    "deploy": "pnpm --filter @hyphaehub/core build && pnpm --filter @hyphaehub/db build && vite build && wrangler deploy",
     "clean": "rimraf dist .turbo .wrangler"
   },
   "dependencies": {

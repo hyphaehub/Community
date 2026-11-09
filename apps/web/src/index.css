@@ -96,6 +96,14 @@ body {
   height: var(--label-qr);
 }
 
+/* On-screen live preview — renders one .label-card at true label size. */
+.label-preview {
+  display: inline-block;
+  border: 1px solid var(--color-mycelium);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
 @media print {
   body * {
     visibility: hidden !important;
@@ -110,12 +118,24 @@ body {
     left: 0;
     top: 0;
   }
-  .label-card {
+  /* One-per-page (thermal): each label is its own page. */
+  .label-print-area:not(.label-sheet) .label-card {
     page-break-after: always;
     break-after: page;
   }
-  .label-card:last-child {
+  .label-print-area:not(.label-sheet) .label-card:last-child {
     page-break-after: auto;
     break-after: auto;
+  }
+  /* Sheet: tile labels onto standard paper for laser/inkjet stock. */
+  .label-print-area.label-sheet {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 3mm;
+  }
+  .label-print-area.label-sheet .label-card {
+    border: 1px dashed #bbb;
+    break-inside: avoid;
   }
 }

@@ -11,7 +11,10 @@
     "APP_URL": "https://app.hyphaehub.io",
     "SITE_URL": "https://hyphaehub.io",
     "BETTER_AUTH_URL": "https://app.hyphaehub.io",
-    "COOKIE_DOMAIN": ".hyphaehub.io"
+    "COOKIE_DOMAIN": ".hyphaehub.io",
+    // Resend handles transactional email. Set the API key as a secret:
+    //   wrangler secret put RESEND_API_KEY
+    "RESEND_FROM": "HyphaeHub <notifications@hyphaehub.io>"
   },
   "d1_databases": [
     {
@@ -21,7 +24,9 @@
       "migrations_dir": "../../packages/db/drizzle"
     }
   ],
-  // Photos require an R2 bucket. Add this binding once R2 is enabled on the token:
-  // "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "hyphaehub-photos" }],
+  // Cloud photo storage (enables photosEnabled + the AI contamination scanner).
+  "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "hyphaehub-photos" }],
+  // Workers AI — powers the photo contamination diagnosis.
+  "ai": { "binding": "AI" },
   "kv_namespaces": [{ "binding": "SESSIONS", "id": "d2d5892a8d3b4963880e492e1ae2389b" }]
 }

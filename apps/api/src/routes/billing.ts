@@ -63,8 +63,8 @@ r.post(
     const cfg = stripeConfig(c.env);
     if (!cfg) return c.json({ error: 'Billing is not configured on this instance.' }, 501);
     const body = await c.req.json().catch(() => ({}));
-    const parsed = z.object({ plan: z.enum(['PRO', 'FARM']) }).safeParse(body);
-    if (!parsed.success) throw new HTTPException(400, { message: 'Choose a PRO or FARM plan.' });
+    const parsed = z.object({ plan: z.enum(['PRO', 'FARM', 'CONNECT']) }).safeParse(body);
+    if (!parsed.success) throw new HTTPException(400, { message: 'Choose a PRO, FARM, or CONNECT plan.' });
     const plan = parsed.data.plan as Plan;
     const priceId = cfg.prices[plan];
     if (!priceId) return c.json({ error: `No Stripe price configured for ${plan}.` }, 501);

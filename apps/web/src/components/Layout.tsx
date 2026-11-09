@@ -2,27 +2,51 @@ import { PLAN_LIMITS } from '@hyphaehub/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { signOut } from '../lib/auth';
+import { appSignOut } from '../lib/auth';
 import { setActiveOrg } from '../lib/org';
-import { Icon } from './icons';
 import { Logo } from './Logo';
+import { Icon } from './icons';
 import { Badge, cn } from './ui';
 
-const baseNav = [
-  { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
-  { to: '/batches', label: 'Batches', icon: 'batches' },
-  { to: '/strains', label: 'Strains', icon: 'strains' },
-  { to: '/inventory', label: 'Inventory', icon: 'inventory' },
-  { to: '/costs', label: 'Costs', icon: 'costs' },
-  { to: '/settings', label: 'Settings', icon: 'settings' },
-] as const;
-
-const jarsItem = { to: '/jars', label: 'Jars', icon: 'inventory', end: false } as const;
-const calendarItem = { to: '/calendar', label: 'Calendar', icon: 'calendar', end: false } as const;
-
 type NavItem = { to: string; label: string; icon: string; end?: boolean };
+type NavGroup = { label?: string; items: NavItem[] };
 
 const SITE_URL = import.meta.env.VITE_SITE_URL ?? 'https://hyphaehub.io';
+
+/** Group the nav by lifecycle: Genetics → Grows → Analyze → Business. */
+function buildNav(features: Record<string, boolean> | undefined): NavGroup[] {
+  const on = (k: string, dflt = true) => (features?.[k] === undefined ? dflt : features[k]);
+  const grows: NavItem[] = [
+    { to: '/batches', label: 'Batches', icon: 'batches' },
+    ...(on('jars', false) ? [{ to: '/jars', label: 'Jars', icon: 'inventory' }] : []),
+    { to: '/tubs', label: 'Tubs', icon: 'tubs' },
+    ...(on('forecast') ? [{ to: '/calendar', label: 'Calendar', icon: 'calendar' }] : []),
+    { to: '/journal', label: 'Journal', icon: 'journal' },
+  ];
+  const analyze: NavItem[] = [
+    { to: '/insights', label: 'Insights', icon: 'insights' },
+    ...(on('costs') ? [{ to: '/costs', label: 'Costs', icon: 'costs' }] : []),
+  ];
+  return [
+    { items: [{ to: '/', label: 'Dashboard', icon: 'dashboard', end: true }] },
+    {
+      label: 'Genetics',
+      items: [
+        { to: '/strains', label: 'Genetics', icon: 'strains' },
+        { to: '/library', label: 'Library', icon: 'vault' },
+      ],
+    },
+    { label: 'Grows', items: grows },
+    { label: 'Analyze', items: analyze },
+    {
+      label: 'Business',
+      items: [
+        { to: '/market', label: 'Storefront', icon: 'market' },
+        { to: '/inventory', label: 'Inventory', icon: 'inventory' },
+      ],
+    },
+  ];
+}
 
 export function Layout() {
   const navigate = useNavigate();
@@ -36,17 +60,12 @@ export function Layout() {
     navigate('/');
   }
 
-  // Feature-flagged items slot into the base nav: Jars between Dashboard and
-  // Batches, Calendar right after Batches.
-  let nav: NavItem[] = [...baseNav];
-  const insertAfter = (to: string, item: NavItem) => {
-    const i = nav.findIndex((n) => n.to === to);
-    const at = i < 0 ? nav.length : i + 1;
-    nav = [...nav.slice(0, at), item, ...nav.slice(at)];
-  };
-  if (me?.features?.jars) insertAfter('/', jarsItem);
-  if (me?.features?.forecast !== false) insertAfter('/batches', calendarItem);
-  if (me?.features?.costs === false) nav = nav.filter((n) => n.to !== '/costs');
+  const groups = buildNav(me?.features);
+  const linkClass = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+      isActive ? 'bg-hyphae-100 text-hyphae-800' : 'text-ink/70 hover:bg-spore',
+    );
 
   return (
     <div className="flex min-h-screen bg-spore">
@@ -54,23 +73,27 @@ export function Layout() {
         <div className="px-2 py-3">
           <Logo />
         </div>
-        <nav className="mt-4 flex flex-1 flex-col gap-1">
-          {nav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={'end' in item ? item.end : false}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  isActive ? 'bg-hyphae-100 text-hyphae-800' : 'text-ink/70 hover:bg-spore',
-                )
-              }
-            >
-              <Icon name={item.icon} />
-              {item.label}
-            </NavLink>
+        <nav className="mt-3 flex flex-1 flex-col gap-0.5 overflow-y-auto">
+          {groups.map((group, gi) => (
+            <div key={group.label ?? `g${gi}`} className={gi > 0 ? 'mt-3' : ''}>
+              {group.label && (
+                <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-ink/35">
+                  {group.label}
+                </div>
+              )}
+              {group.items.map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.end ?? false} className={linkClass}>
+                  <Icon name={item.icon} />
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
+          <div className="mt-3">
+            <NavLink to="/settings" className={linkClass}>
+              <Icon name="settings" /> Settings
+            </NavLink>
+          </div>
           {me?.isSuperAdmin && (
             <NavLink
               to="/admin"
@@ -102,7 +125,9 @@ export function Layout() {
               </select>
             ) : (
               <div className="flex items-center justify-between">
-                <div className="truncate text-sm font-medium text-substrate">{me.workspace.name}</div>
+                <div className="truncate text-sm font-medium text-substrate">
+                  {me.workspace.name}
+                </div>
                 <Badge color={me.plan === 'FREE' ? 'neutral' : 'green'}>
                   {PLAN_LIMITS[me.plan].label}
                 </Badge>
@@ -117,7 +142,12 @@ export function Layout() {
             </a>
             <button
               type="button"
-              onClick={() => signOut().then(() => navigate('/login'))}
+              onClick={() =>
+                appSignOut().then(() => {
+                  qc.clear();
+                  navigate('/login');
+                })
+              }
               className="mt-2 flex items-center gap-2 text-xs font-medium text-ink/60 hover:text-flush"
             >
               <Icon name="logout" size={14} /> Sign out

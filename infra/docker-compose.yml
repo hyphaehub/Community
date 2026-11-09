@@ -4,17 +4,29 @@ services:
       context: ..
       dockerfile: infra/Dockerfile
     image: hyphaehub/community:latest
+    # Host port is configurable: `HTTP_PORT=9000 docker compose up -d`.
     ports:
-      - "8080:8080"
+      - "${HTTP_PORT:-8080}:8080"
     environment:
-      # CHANGE THIS to a long random string before exposing the instance.
-      BETTER_AUTH_SECRET: "change-me-to-a-long-random-secret"
-      APP_URL: "http://localhost:8080"
-      SITE_URL: "http://localhost:8080"
-      # BETTER_AUTH_URL: "https://grow.example.com"   # set when behind a domain
+      # Optional. If unset, a strong secret is generated on first boot and saved
+      # to the data volume (so sessions survive restarts). Set it to pin your own
+      # value or to share one session secret across multiple replicas.
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:-}"
+      APP_URL: "${APP_URL:-http://localhost:${HTTP_PORT:-8080}}"
+      SITE_URL: "${SITE_URL:-http://localhost:${HTTP_PORT:-8080}}"
+      # Behind a domain / reverse proxy? Set APP_URL + SITE_URL (and optionally
+      # BETTER_AUTH_URL) to your public https:// URL, e.g.:
+      #   APP_URL: "https://grow.example.com"
+      #   BETTER_AUTH_URL: "https://grow.example.com"
     volumes:
       - hyphaehub-data:/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
 
 volumes:
   hyphaehub-data:

@@ -81,8 +81,14 @@ export function Jars() {
             <Field label="Grain type">
               <Input value={grainType} onChange={(e) => setGrainType(e.target.value)} />
             </Field>
-            <Field label="Grain per jar (g)" hint="grams; converted to the inventory item's unit automatically">
-              <Input type="number" min={0} value={qty} onChange={(e) => setQty(e.target.value)} />
+            <Field label="Grain per jar (g)" hint="grams (decimals ok, e.g. 226.5); converted to the inventory item's unit automatically">
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+              />
             </Field>
             <Field label="Draw from inventory" hint="optional; deducts stock and logs cost">
               <select
@@ -100,7 +106,7 @@ export function Jars() {
             </Field>
             {(() => {
               const item = (inventory.data ?? []).find((i) => i.id === invId);
-              const grams = (Number(qty) || 0) * (Number(count) || 0);
+              const grams = Math.round((Number(qty) || 0) * (Number(count) || 0) * 100) / 100;
               if (!item || grams <= 0) return null;
               const converted = gramsToUnit(grams, item.unit);
               return (

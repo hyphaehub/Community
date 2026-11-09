@@ -2,8 +2,10 @@ import { checkLimit, type MembershipRole, type Plan, PLAN_LIMITS } from '@hyphae
 import {
   batches,
   cultures,
+  type HyphaeBatchItem,
   type HyphaeDB,
   memberships,
+  newId,
   photos,
   type Workspace,
   workspaces,
@@ -53,14 +55,17 @@ export async function resolveActiveWorkspace(
   const orgs = await listUserOrgs(db, userId);
   if (orgs[0]) return orgs[0];
 
-  // No memberships yet — create a personal farm.
-  const created = await db
-    .insert(workspaces)
-    .values({ name: 'My Farm', ownerUserId: userId })
-    .returning();
-  const ws = created[0];
+  // No memberships yet — create a personal farm. Do the workspace + membership
+  // inserts atomically so a partial failure can't leave an orphan workspace that
+  // this same branch would then recreate on every subsequent request.
+  const wsId = newId();
+  const writes: HyphaeBatchItem[] = [
+    db.insert(workspaces).values({ id: wsId, name: 'My Farm', ownerUserId: userId }).returning(),
+    db.insert(memberships).values({ workspaceId: wsId, userId, role: 'OWNER' }),
+  ];
+  const results = await db.batch(writes as [HyphaeBatchItem, ...HyphaeBatchItem[]]);
+  const ws = (results[0] as Workspace[])[0];
   if (!ws) throw new HTTPException(500, { message: 'Failed to create organization' });
-  await db.insert(memberships).values({ workspaceId: ws.id, userId, role: 'OWNER' });
   return { workspace: ws, role: 'OWNER' };
 }
 

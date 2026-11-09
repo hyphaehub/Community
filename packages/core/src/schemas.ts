@@ -2,13 +2,21 @@ import { z } from 'zod';
 import {
   BATCH_STATUSES,
   CONTAINER_TYPES,
+  CONTAMINANT_TYPES,
+  CONTAMINATION_CAUSES,
   COST_CATEGORIES,
   CULTURE_STATUSES,
   CULTURE_TYPES,
   EVENT_TYPES,
+  INVENTORY_ADJUSTMENT_KINDS,
   INVENTORY_CATEGORIES,
+  INVENTORY_LOSS_REASONS,
+  LIBRARY_FORMATS,
+  LISTING_FORMS,
+  LISTING_STATUSES,
   MEMBERSHIP_ROLES,
   PLANS,
+  SOURCE_FORMS,
   SOURCE_TYPES,
 } from './enums';
 
@@ -81,6 +89,13 @@ export const strainCreateSchema = z.object({
   optimalTempMinC: z.number().optional().nullable(),
   optimalTempMaxC: z.number().optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
+  // Provenance (how the genetics were acquired).
+  sourceForm: z.enum(SOURCE_FORMS).optional().nullable(),
+  acquiredAt: optionalDate,
+  /** The vendor's catalog name, kept distinct from the grower's own commonName. */
+  vendorStrainName: z.string().max(120).optional().nullable(),
+  /** Species-identity evidence (e.g. an ITS sequencing note). */
+  sequencingNote: z.string().max(2000).optional().nullable(),
 });
 export const strainUpdateSchema = strainCreateSchema.partial();
 
@@ -179,6 +194,39 @@ export const harvestCreateSchema = z.object({
 });
 export const harvestUpdateSchema = harvestCreateSchema.partial().omit({ cultureId: true });
 
+// ── Contamination (mark a culture contaminated with structured taxonomy) ──────
+export const contaminationSchema = z.object({
+  contaminantType: z.enum(CONTAMINANT_TYPES).default('UNKNOWN'),
+  contaminationCause: z.enum(CONTAMINATION_CAUSES).optional().nullable(),
+  contaminatedAt: optionalDate,
+  note: z.string().max(2000).optional().nullable(),
+});
+
+// ── Environment reading (manual temp / humidity / CO₂ log) ────────────────────
+export const environmentReadingCreateSchema = z
+  .object({
+    batchId: id.optional().nullable(),
+    cultureId: id.optional().nullable(),
+    /** Temperature in Celsius (clients convert for display). */
+    tempC: z.number().min(-20).max(80).optional().nullable(),
+    humidityPct: z.number().min(0).max(100).optional().nullable(),
+    co2Ppm: z.number().min(0).max(100000).optional().nullable(),
+    recordedAt: optionalDate,
+    note: z.string().max(500).optional().nullable(),
+  })
+  .refine((v) => v.tempC != null || v.humidityPct != null || v.co2Ppm != null, {
+    message: 'Enter at least one of temperature, humidity, or CO₂.',
+  });
+
+// ── Log entry (grow journal: dated free-form notes, batch-scoped or global) ───
+export const logEntryCreateSchema = z.object({
+  body: z.string().min(1).max(5000),
+  /** Batch this note belongs to; omit/null for a workspace-wide journal entry. */
+  batchId: id.optional().nullable(),
+  occurredAt: optionalDate,
+});
+export const logEntryUpdateSchema = logEntryCreateSchema.partial();
+
 // ── Inventory item ───────────────────────────────────────────────────────────
 export const inventoryItemCreateSchema = z.object({
   name: z.string().min(1).max(120),
@@ -192,9 +240,12 @@ export const inventoryItemCreateSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 export const inventoryItemUpdateSchema = inventoryItemCreateSchema.partial();
-/** Increment (restock) or decrement (consume) stock on hand. */
+/** Increment (restock) or decrement (loss/usage/correction) stock on hand. */
 export const inventoryAdjustSchema = z.object({
   delta: z.number(),
+  kind: z.enum(INVENTORY_ADJUSTMENT_KINDS).default('CORRECTION'),
+  /** For a LOSS: why the stock was written off. */
+  reason: z.enum(INVENTORY_LOSS_REASONS).optional().nullable(),
   note: z.string().max(200).optional().nullable(),
 });
 
@@ -210,6 +261,138 @@ export const costEntryCreateSchema = z.object({
   occurredAt: optionalDate,
 });
 export const costEntryUpdateSchema = costEntryCreateSchema.partial();
+
+// ── Culture library / vault (store stock + revive) ───────────────────────────
+export const libraryStoreSchema = z.object({
+  format: z.enum(LIBRARY_FORMATS).default('AGAR_PLATE'),
+  storageMethod: z.string().max(120).optional().nullable(),
+  storageLocation: z.string().max(120).optional().nullable(),
+  storedAt: optionalDate,
+  note: z.string().max(1000).optional().nullable(),
+});
+/** Patch a stored culture's library fields (and optionally mark it revived now). */
+export const libraryUpdateSchema = libraryStoreSchema.partial().extend({
+  lastRevivedAt: optionalDate,
+});
+
+/** Add a purchased / standalone source straight into the library (e.g. a spore syringe). */
+export const libraryCreateSchema = z.object({
+  label: z.string().min(1).max(120),
+  strainId: id.optional().nullable(),
+  format: z.enum(LIBRARY_FORMATS).default('SPORE_SYRINGE'),
+  storageMethod: z.string().max(120).optional().nullable(),
+  storageLocation: z.string().max(120).optional().nullable(),
+  storedAt: optionalDate,
+  quantity: z.number().nonnegative().optional().nullable(),
+  quantityUnit: z.string().max(24).optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
+});
+
+/**
+ * Draw N children from a stored library source — e.g. a spore syringe → several
+ * grain jars into a grow batch, or → a liquid culture kept as library stock. The
+ * source is reusable and is never consumed.
+ */
+export const libraryDrawSchema = z
+  .object({
+    count: z.number().int().min(1).max(100),
+    type: z.enum(CULTURE_TYPES).default('GRAIN'),
+    labelPrefix: z.string().max(80).optional(),
+    containerType: z.enum(CONTAINER_TYPES).default('JAR'),
+    substrateType: z.string().max(120).optional().nullable(),
+    quantity: z.number().nonnegative().optional().nullable(),
+    quantityUnit: z.string().max(24).optional().nullable(),
+    inoculatedAt: optionalDate,
+    costPerChildCents: cents.nonnegative().optional(),
+    /** 'batch' sends the children into a grow; 'library' keeps them as stored stock. */
+    destination: z.enum(['batch', 'library']).default('batch'),
+    batchId: id.optional().nullable(),
+    newBatchName: z.string().min(1).max(120).optional().nullable(),
+    libraryFormat: z.enum(LIBRARY_FORMATS).optional().nullable(),
+    storageLocation: z.string().max(120).optional().nullable(),
+  })
+  .refine((d) => d.destination !== 'batch' || !!d.batchId || !!d.newBatchName, {
+    message: 'Pick an existing batch or name a new one.',
+    path: ['batchId'],
+  });
+
+// ── Forecast base times (workspace-level default stage durations) ─────────────
+export const forecastProfileSettingsSchema = z.object({
+  /** Inoculation → spawn to bulk (grain colonization), days. */
+  colonization: z.number().int().min(1).max(180),
+  /** Spawn → fruiting conditions (bulk colonization), days. */
+  bulkColonization: z.number().int().min(1).max(180),
+  /** Fruiting → first harvest, days. */
+  firstFlush: z.number().int().min(1).max(180),
+  /** Between consecutive flushes, days. */
+  flushGap: z.number().int().min(1).max(180),
+  /** How many flushes to project. */
+  flushes: z.number().int().min(1).max(8),
+});
+
+// ── Marketplace / storefront (FARM tier) ──────────────────────────────────────
+export const storefrontSettingsSchema = z.object({
+  enabled: z.boolean().optional(),
+  /** Show the farm's forecasted upcoming harvests to buyers. */
+  showForecast: z.boolean().optional(),
+  /** How many days ahead of predicted harvests to surface. */
+  forecastDays: z.number().int().min(1).max(120).optional(),
+  blurb: z.string().max(2000).optional().nullable(),
+});
+
+/** Invite a buyer (purchaser) to the storefront by email. */
+export const buyerInviteSchema = z.object({
+  email: z.string().email(),
+  name: z.string().max(160).optional().nullable(),
+});
+
+/** List harvested product for sale. `harvestId` links the source harvest. */
+export const listingCreateSchema = z.object({
+  title: z.string().min(1).max(160),
+  form: z.enum(LISTING_FORMS).default('FRESH'),
+  harvestId: id.optional().nullable(),
+  batchId: id.optional().nullable(),
+  strainId: id.optional().nullable(),
+  /** Sellable quantity in grams. */
+  quantityG: z.number().nonnegative(),
+  /** Price in cents per kg (null = contact / market price). */
+  pricePerKgCents: cents.nonnegative().optional().nullable(),
+  /** When it's ready (null = available now). */
+  availableAt: optionalDate,
+  notes: z.string().max(2000).optional().nullable(),
+  status: z.enum(LISTING_STATUSES).default('AVAILABLE'),
+});
+export const listingUpdateSchema = listingCreateSchema.partial();
+
+/** A buyer "calls dibs": on a listing (available) or a batch (predicted pre-order). */
+export const dibCreateSchema = z
+  .object({
+    listingId: id.optional().nullable(),
+    batchId: id.optional().nullable(),
+    requestedQtyG: z.number().positive().optional().nullable(),
+    note: z.string().max(1000).optional().nullable(),
+  })
+  .refine((v) => !!v.listingId || !!v.batchId, {
+    message: 'Dibs must reference a listing or a predicted batch.',
+  });
+
+/** Buyer exchanges a magic-link login token for a session. */
+export const portalSessionSchema = z.object({
+  token: z.string().min(10),
+});
+
+/** A buyer casts (or the request to cast) a vote for a strain to grow next. */
+export const voteCreateSchema = z.object({
+  strainId: id,
+});
+
+/** Public early-access / waitlist signup (no auth). `hp` is a spam honeypot. */
+export const waitlistSignupSchema = z.object({
+  email: z.string().email().max(254),
+  name: z.string().max(120).optional().nullable(),
+  source: z.string().max(40).optional().nullable(),
+  hp: z.string().max(200).optional(), // honeypot: humans leave this empty; the route drops it if filled
+});
 
 // ── Inferred DTO types ───────────────────────────────────────────────────────
 export type WorkspaceUpdateInput = z.input<typeof workspaceUpdateSchema>;
@@ -234,6 +417,23 @@ export type EventCreateInput = z.input<typeof eventCreateSchema>;
 export type EventUpdateInput = z.input<typeof eventUpdateSchema>;
 export type HarvestCreateInput = z.input<typeof harvestCreateSchema>;
 export type HarvestUpdateInput = z.input<typeof harvestUpdateSchema>;
+export type LogEntryCreateInput = z.input<typeof logEntryCreateSchema>;
+export type LogEntryUpdateInput = z.input<typeof logEntryUpdateSchema>;
+export type ContaminationInput = z.input<typeof contaminationSchema>;
+export type EnvironmentReadingCreateInput = z.input<typeof environmentReadingCreateSchema>;
+export type ForecastProfileSettingsInput = z.input<typeof forecastProfileSettingsSchema>;
+export type LibraryStoreInput = z.input<typeof libraryStoreSchema>;
+export type LibraryUpdateInput = z.input<typeof libraryUpdateSchema>;
+export type LibraryCreateInput = z.input<typeof libraryCreateSchema>;
+export type LibraryDrawInput = z.input<typeof libraryDrawSchema>;
+export type StorefrontSettingsInput = z.input<typeof storefrontSettingsSchema>;
+export type BuyerInviteInput = z.input<typeof buyerInviteSchema>;
+export type ListingCreateInput = z.input<typeof listingCreateSchema>;
+export type ListingUpdateInput = z.input<typeof listingUpdateSchema>;
+export type DibCreateInput = z.input<typeof dibCreateSchema>;
+export type PortalSessionInput = z.input<typeof portalSessionSchema>;
+export type VoteCreateInput = z.input<typeof voteCreateSchema>;
+export type WaitlistSignupInput = z.input<typeof waitlistSignupSchema>;
 export type InventoryItemCreateInput = z.input<typeof inventoryItemCreateSchema>;
 export type InventoryItemUpdateInput = z.input<typeof inventoryItemUpdateSchema>;
 export type InventoryAdjustInput = z.input<typeof inventoryAdjustSchema>;

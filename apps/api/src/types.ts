@@ -1,4 +1,4 @@
-import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
+import type { Ai, D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
 import type { MembershipRole } from '@hyphaehub/core';
 import type { HyphaeDB, Workspace } from '@hyphaehub/db';
 import type { createAuth } from './auth';
@@ -8,6 +8,8 @@ import type { Storage } from './storage';
 export interface Env {
   DB: D1Database;
   PHOTOS?: R2Bucket;
+  /** Workers AI binding (photo contamination diagnosis). */
+  AI?: Ai;
   SESSIONS?: KVNamespace;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL?: string;
@@ -20,6 +22,17 @@ export interface Env {
   HYPHAE_STRIPE_WEBHOOK_SECRET?: string;
   HYPHAE_STRIPE_PRICE_PRO?: string;
   HYPHAE_STRIPE_PRICE_FARM?: string;
+  HYPHAE_STRIPE_PRICE_CONNECT?: string;
+  /** Extra origins the official clients may connect from (Cloud Connect), comma-separated. */
+  CONNECT_ORIGINS?: string;
+  /**
+   * Which edition this instance is. The self-hosted (Community) server sets
+   * 'community'; the cloud leaves it unset (treated as 'cloud'). Drives the
+   * "Connect this instance to HyphaeHub Cloud" UI, shown only on self-host.
+   */
+  EDITION?: 'cloud' | 'community';
+  /** The HyphaeHub Cloud base URL a self-hosted instance connects to. */
+  CLOUD_URL?: string;
   // Auth0 (OIDC). When these are set, Auth0 becomes the login provider and
   // email/password is disabled unless EMAIL_PASSWORD_AUTH === 'true'.
   HYPHAE_AUTH0_DOMAIN?: string;
@@ -28,6 +41,10 @@ export interface Env {
   EMAIL_PASSWORD_AUTH?: string;
   /** Email address granted super-admin (compared case-insensitively). */
   SUPER_ADMIN_EMAIL?: string;
+  /** Resend API key — handles all operational/transactional email. Secret. */
+  RESEND_API_KEY?: string;
+  /** From address for outbound email, e.g. "HyphaeHub <notifications@hyphaehub.io>". */
+  RESEND_FROM?: string;
 }
 
 export type Auth = ReturnType<typeof createAuth>;
@@ -50,6 +67,8 @@ export interface Variables {
   membershipRole: MembershipRole;
   /** True when the authenticated user is the platform super admin. */
   isSuperAdmin: boolean;
+  /** Set by requireBuyer on storefront routes: the authenticated purchaser. */
+  buyer: { id: string; workspaceId: string; email: string };
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables };

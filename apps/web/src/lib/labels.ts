@@ -1,6 +1,6 @@
 import { CULTURE_TYPE_LABELS } from '@hyphaehub/core';
-import { formatDate } from './format';
-import type { Batch, Culture, Strain } from './types';
+import { formatDate, formatMass } from './format';
+import type { Batch, Culture, Harvest, InventoryItem, Strain } from './types';
 
 /** Printable label content. Kept small so it fits common thermal label stock. */
 export interface LabelData {
@@ -78,7 +78,111 @@ export function cultureLabelData(culture: Culture, strainName?: string | null): 
   };
 }
 
+/** Build a label for a harvest (flush). QR opens the parent batch. */
+export function harvestLabelData(
+  harvest: Harvest,
+  batch?: Batch | null,
+  strain?: string | null,
+): LabelData {
+  const dry = harvest.dryWeightG != null ? `${formatMass(harvest.dryWeightG)} dry` : 'drying…';
+  const meta = [
+    `${formatMass(harvest.wetWeightG)} wet`,
+    dry,
+    `harvested ${formatDate(harvest.harvestedAt)}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const batchId = harvest.batchId ?? batch?.id ?? null;
+  return {
+    key: `harvest:${harvest.id}`,
+    title: strain ? `${strain} · Flush ${harvest.flushNumber}` : `Flush ${harvest.flushNumber}`,
+    subtitle: batch?.name ?? undefined,
+    meta,
+    url: batchId ? `${appOrigin()}/batches/${batchId}` : `${appOrigin()}/`,
+    code: shortCode(harvest.id),
+  };
+}
+
+/** Build a label for a strain. QR opens the strains catalog. */
+export function strainLabelData(strain: Strain): LabelData {
+  return {
+    key: `strain:${strain.id}`,
+    title: strain.commonName,
+    subtitle: strain.species ?? undefined,
+    meta: strain.category ? strain.category.toLowerCase() : undefined,
+    url: `${appOrigin()}/strains`,
+    code: shortCode(strain.id),
+  };
+}
+
+/** Build a label for an inventory item. QR opens the inventory page. */
+export function inventoryLabelData(item: InventoryItem): LabelData {
+  const meta = [`${item.quantityOnHand} ${item.unit}`, item.supplier ?? '']
+    .filter(Boolean)
+    .join(' · ');
+  return {
+    key: `inventory:${item.id}`,
+    title: item.name,
+    subtitle: item.category ? item.category.toLowerCase() : undefined,
+    meta,
+    url: `${appOrigin()}/inventory`,
+    code: shortCode(item.id),
+  };
+}
+
 /** Resolve a strain name from a strain row (nullable). */
 export function strainName(strain?: Strain | null): string | undefined {
   return strain?.commonName ?? undefined;
+}
+
+// ── Label preferences (remembered across sessions) ───────────────────────────
+
+/** Which optional fields show on a label. Title + QR value are always present. */
+export interface LabelFields {
+  subtitle: boolean;
+  meta: boolean;
+  code: boolean;
+  qr: boolean;
+}
+
+/** How labels lay out on paper. */
+export type LabelLayout = 'page' | 'sheet';
+
+export interface LabelPrefs {
+  sizeKey: string;
+  layout: LabelLayout;
+  fields: LabelFields;
+}
+
+export const DEFAULT_LABEL_PREFS: LabelPrefs = {
+  sizeKey: DEFAULT_LABEL_SIZE.key,
+  layout: 'page',
+  fields: { subtitle: true, meta: true, code: true, qr: true },
+};
+
+const PREFS_KEY = 'hh_label_prefs';
+
+/** Read saved label prefs, merged over defaults. Safe if storage is unavailable. */
+export function loadLabelPrefs(): LabelPrefs {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (!raw) return DEFAULT_LABEL_PREFS;
+    const saved = JSON.parse(raw) as Partial<LabelPrefs>;
+    return {
+      sizeKey: saved.sizeKey ?? DEFAULT_LABEL_PREFS.sizeKey,
+      layout: saved.layout === 'sheet' ? 'sheet' : 'page',
+      fields: { ...DEFAULT_LABEL_PREFS.fields, ...(saved.fields ?? {}) },
+    };
+  } catch {
+    return DEFAULT_LABEL_PREFS;
+  }
+}
+
+/** Persist label prefs. No-op if storage is unavailable. */
+export function saveLabelPrefs(prefs: LabelPrefs): void {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // ignore (private mode / storage disabled)
+  }
 }

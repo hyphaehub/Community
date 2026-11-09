@@ -39,6 +39,20 @@ export const FEATURES = {
       'Track materials, substrate, and supply costs per batch, with cost-per-gram and total spend. Turn off to hide all cost tracking.',
     defaultEnabled: true,
   },
+  aiDiagnosis: {
+    key: 'aiDiagnosis',
+    label: 'AI contamination scanner',
+    description:
+      'Diagnose a photo of a suspect culture with AI — likely contaminant, whether it looks healthy, and next steps. Requires cloud photo storage.',
+    defaultEnabled: true,
+  },
+  strainVoting: {
+    key: 'strainVoting',
+    label: 'Strain voting',
+    description:
+      'Let your storefront buyers vote for which strain from your library to grow next. Requires the FARM plan and an open storefront.',
+    defaultEnabled: false,
+  },
 } as const satisfies Record<string, FeatureDef>;
 
 export type FeatureKey = keyof typeof FEATURES;

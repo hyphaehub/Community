@@ -1,0 +1,1 @@
+ALTER TABLE `workspaces` ADD `forecast_profile` text;

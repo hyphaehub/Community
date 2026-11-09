@@ -16,6 +16,7 @@ export function stripeConfig(env: Env): StripeConfig | null {
     prices: {
       PRO: env.HYPHAE_STRIPE_PRICE_PRO,
       FARM: env.HYPHAE_STRIPE_PRICE_FARM,
+      CONNECT: env.HYPHAE_STRIPE_PRICE_CONNECT,
     },
   };
 }

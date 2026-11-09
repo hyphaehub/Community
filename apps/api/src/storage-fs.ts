@@ -6,6 +6,7 @@ import type { Storage } from './storage';
 
 /** Filesystem-backed storage for the self-hosted Node edition. */
 export class FsStorage implements Storage {
+  readonly enabled = true;
   private root: string;
 
   constructor(root: string) {
